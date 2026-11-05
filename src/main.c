@@ -22,7 +22,7 @@ void inicializarJogador(struct Jogador *um){
     um->velocidade = 300;
     um->vidas = 3;
     
-    um->x = 376;
+    um->x = 368;
     um->y = 520;
 }
 
@@ -36,11 +36,11 @@ void movimentacaoJogador(struct Jogador *um){
         
         um->x = deslocamento + um->x;
         
-        if(um->x > 736){
+        if(um->x > 800 - um->largura){//troquei por que provavelmente vou mudar o tamanho da nave
             
-            um->x = 736;//limite - largura do jogador
+            um->x = 800 - um->largura;//limite - largura do jogador
             
-            //É 752 PQ O LADO ESQUERDO TEM QUE MANTER A MARGEM
+            //É PQ O LADO ESQUERDO TEM QUE MANTER A MARGEM
         }
         
     }else if(IsKeyDown(KEY_A)){
@@ -81,9 +81,13 @@ int main(void) {
     Jogador *primeiro = malloc(sizeof(Jogador));
     
     if (primeiro == NULL) {
-    CloseWindow();
-    return 1;
-}
+
+        UnloadTexture(texturaNave);
+
+        CloseWindow();
+
+        return 1;
+    }
     
     inicializarJogador(primeiro);
     
@@ -91,16 +95,14 @@ int main(void) {
 
     while (!WindowShouldClose()) {
 
-        BeginDrawing();
+        movimentacaoJogador(primeiro);
 
+        BeginDrawing();
         ClearBackground(BLACK);
 
-        movimentacaoJogador(primeiro);
-        
         desenharNave(primeiro, texturaNave);
 
         DrawText("SPACE TRAVELER", 250, 250, 30, WHITE);
-        
 
         EndDrawing();
     }
