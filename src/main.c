@@ -29,6 +29,269 @@ typedef struct TiroJogador{
     
 }TiroJogador;
 
+typedef struct Inimigo {
+
+    float largura;
+    float altura;
+
+    float velocidade;
+
+    float x;
+    float y;
+
+    int vivo;
+
+    struct Inimigo *prox;
+
+} Inimigo;
+
+Inimigo* inicializarInimigo(Inimigo *naveInimiga) {
+
+    Inimigo *anterior = naveInimiga;
+
+    int const constante = 50;
+
+    
+
+    for(int i = 0; i < 55; i++){
+
+
+        Inimigo *novo = malloc(sizeof(Inimigo));
+
+            if (novo == NULL) {
+
+            Inimigo *auxiliar = naveInimiga;
+
+            while (auxiliar != NULL) {
+
+                Inimigo *proximo = auxiliar->prox;
+
+                free(auxiliar);
+
+                auxiliar = proximo;
+            }
+
+            return NULL;
+        }
+
+        if(i > -1 && i < 11){
+            if(i == 0){
+
+                naveInimiga = novo;
+                novo->prox = NULL;//quando é o primeiro ele aponta pra null e faz a nave inimiga apontar pra o comeco da lista
+
+                anterior = novo;// e o anterior vai ser o primeiro pq ainda nao tem anterior
+
+
+                novo->largura = 45;
+                novo->altura = 45;
+
+                novo->y = 80;
+                novo->x = 130;//começa com esse e vai aumentando;
+
+                novo->vivo = 1;
+
+                novo->velocidade = 50;
+
+            }else{
+
+
+                anterior->prox = novo;//ex: se for o segundo, o anterior ta apontado pro começo da lista, o prox passa apontar pra o segundo
+
+                novo->y = 80;
+                novo->x = anterior->x + constante;//sempre soma 50//define o x enquanto anterior ainda é o primeiro
+        
+                novo->vivo = 1;
+                novo->velocidade = 50;
+
+                novo->altura = 45;
+                novo->largura = 45;
+
+                anterior = novo;//anterior vira o novo pra quando criarem outro novo ele virar o anterior novamente
+
+                novo->prox = NULL; //como to adicionando no final da lista cada novo, todo prox do novo vai ser NULL;
+
+                
+            }
+        }
+
+        if(i > 10 && i < 22){
+
+            if (i == 11){
+                
+                anterior->prox = novo;
+
+                novo->y = 130;
+                novo->x = 130;
+            
+                novo->vivo = 1;
+                novo->velocidade = 50;
+
+                novo->altura = 45;
+                novo->largura = 45;
+
+                anterior = novo;
+
+                novo->prox = NULL;;
+
+            }else{        
+
+
+                anterior->prox = novo;
+
+                novo->y = 130;
+                novo->x = anterior->x + constante;
+            
+                novo->vivo = 1;
+                novo->velocidade = 50;
+
+                novo->altura = 45;
+                novo->largura = 45;
+
+                anterior = novo;
+
+                novo->prox = NULL;;
+            }
+
+
+        }
+
+        if(i > 21 && i < 33){
+
+
+           if (i == 22){
+                
+                anterior->prox = novo;
+
+                novo->y = 180;
+                novo->x = 130;
+            
+                novo->vivo = 1;
+                novo->velocidade = 50;
+
+                novo->altura = 45;
+                novo->largura = 45;
+
+                anterior = novo;
+
+                novo->prox = NULL;;
+
+            }else{        
+
+
+                anterior->prox = novo;
+
+                novo->y = 180;
+                novo->x = anterior->x + constante;
+            
+                novo->vivo = 1;
+                novo->velocidade = 50;
+
+                novo->altura = 45;
+                novo->largura = 45;
+
+                anterior = novo;
+
+                novo->prox = NULL;;
+            }
+
+
+
+        }
+
+        if(i > 32 && i < 44){
+
+
+            if (i == 33){
+                
+                anterior->prox = novo;
+
+                novo->y = 230;
+                novo->x = 130;
+            
+                novo->vivo = 1;
+                novo->velocidade = 50;
+
+                novo->altura = 45;
+                novo->largura = 45;
+
+                anterior = novo;
+
+                novo->prox = NULL;;
+
+            }else{        
+
+
+                anterior->prox = novo;
+
+                novo->y = 230;
+                novo->x = anterior->x + constante;
+            
+                novo->vivo = 1;
+                novo->velocidade = 50;
+
+                novo->altura = 45;
+                novo->largura = 45;
+
+                anterior = novo;
+
+                novo->prox = NULL;;
+            }
+
+
+
+        }
+
+        if(i > 43 && i < 55){
+
+
+            if (i == 44){
+                
+                anterior->prox = novo;
+
+                novo->y = 280;
+                novo->x = 130;
+            
+                novo->vivo = 1;
+                novo->velocidade = 50;
+
+                novo->altura = 45;
+                novo->largura = 45;
+
+                anterior = novo;
+
+                novo->prox = NULL;;
+
+            }else{        
+
+
+                anterior->prox = novo;
+
+                novo->y = 280;
+                novo->x = anterior->x + constante;
+            
+                novo->vivo = 1;
+                novo->velocidade = 50;
+
+                novo->altura = 45;
+                novo->largura = 45;
+
+                anterior = novo;
+
+                novo->prox = NULL;;
+            }
+
+
+
+        }
+
+
+    }
+
+    return naveInimiga;
+
+}
+
 TiroJogador *criarTiro(struct Jogador *um) {
 
     TiroJogador *novo = malloc(sizeof(TiroJogador));
@@ -208,12 +471,33 @@ void desenharTiro(TiroJogador *bullet, Texture2D texturaTiro) {//Solon
     }
 }
 
+void desenharInimigos(Inimigo *naveInimiga, Texture2D texturaInimigo) {//solon
+
+    Inimigo *auxiliar = naveInimiga;
+
+    while (auxiliar != NULL) {
+
+        if (auxiliar->vivo == 1) {
+
+            Rectangle origem = {0, 0, texturaInimigo.width, texturaInimigo.height};
+
+            Rectangle destino = {
+                auxiliar->x, auxiliar->y, auxiliar->largura, auxiliar->altura};
+
+            DrawTexturePro(texturaInimigo, origem, destino, (Vector2){0, 0}, 0, WHITE);
+        }
+
+        auxiliar = auxiliar->prox;
+    }
+}
+
 int main(void) {
 
     InitWindow(800, 600, "Space Traveler");
 
     Texture2D texturaNave = LoadTexture("assets/nave.png");
     Texture2D texturaTiro = LoadTexture("assets/tiro.png");
+    Texture2D texturaInimigo = LoadTexture("assets/inimigo1.png");
 
     SetTargetFPS(60);
     
@@ -225,6 +509,7 @@ int main(void) {
 
         UnloadTexture(texturaNave);
         UnloadTexture(texturaTiro);
+        UnloadTexture(texturaInimigo);
 
         CloseWindow();
 
@@ -234,6 +519,24 @@ int main(void) {
     inicializarJogador(primeiro);
 
     TiroJogador *bullet = NULL;
+
+    Inimigo *naveInimiga = NULL;
+
+    naveInimiga = inicializarInimigo(naveInimiga);
+
+    if (naveInimiga == NULL) {
+
+        free(primeiro);
+
+        UnloadTexture(texturaNave);
+        UnloadTexture(texturaTiro);
+        UnloadTexture(texturaInimigo);
+
+        CloseWindow();
+
+        return 1;
+    }
+    
     
     
 
@@ -251,15 +554,16 @@ int main(void) {
 
         desenharNave(primeiro, texturaNave);
 
-        desenharTiro(bullet, texturaTiro);
+        desenharInimigos(naveInimiga, texturaInimigo);
 
-        DrawText("SPACE TRAVELER", 250, 250, 30, WHITE);
+        desenharTiro(bullet, texturaTiro);
 
         EndDrawing();
     }
 
-    UnloadTexture(texturaNave);//meio que libera a textura
+    UnloadTexture(texturaNave);//libera a textura
     UnloadTexture(texturaTiro);
+    UnloadTexture(texturaInimigo);
 
     CloseWindow();
 
@@ -270,6 +574,16 @@ int main(void) {
         bullet = bullet->prox;
 
         free(auxiliar);
+    }
+
+    while (naveInimiga != NULL) {
+
+    Inimigo *auxiliar = naveInimiga;
+
+    naveInimiga = naveInimiga->prox;
+
+    free(auxiliar);
+
     }
     
     free(primeiro);
