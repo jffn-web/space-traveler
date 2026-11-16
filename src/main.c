@@ -41,6 +41,8 @@ typedef struct Inimigo {
 
     int vivo;
 
+    int pontos;
+
     struct Inimigo *prox;
 
 } Inimigo;
@@ -93,6 +95,8 @@ Inimigo* inicializarInimigo(Inimigo *naveInimiga) {
 
                 novo->velocidade = 50;
 
+                novo->pontos = 30;
+
             }else{
 
 
@@ -106,6 +110,9 @@ Inimigo* inicializarInimigo(Inimigo *naveInimiga) {
 
                 novo->altura = 45;
                 novo->largura = 45;
+
+                novo->pontos = 30;
+
 
                 anterior = novo;//anterior vira o novo pra quando criarem outro novo ele virar o anterior novamente
 
@@ -122,13 +129,16 @@ Inimigo* inicializarInimigo(Inimigo *naveInimiga) {
                 anterior->prox = novo;
 
                 novo->y = 130;
-                novo->x = 130;
+                novo->x = 130;//toda vez tenho que iniciar o primeiro da filieira pra declarar o x e usar ele pra somar a constante
             
                 novo->vivo = 1;
                 novo->velocidade = 50;
 
                 novo->altura = 45;
                 novo->largura = 45;
+
+                novo->pontos = 20;
+
 
                 anterior = novo;
 
@@ -147,6 +157,8 @@ Inimigo* inicializarInimigo(Inimigo *naveInimiga) {
 
                 novo->altura = 45;
                 novo->largura = 45;
+
+                novo->pontos = 20;
 
                 anterior = novo;
 
@@ -172,6 +184,8 @@ Inimigo* inicializarInimigo(Inimigo *naveInimiga) {
                 novo->altura = 45;
                 novo->largura = 45;
 
+                novo->pontos = 20;
+
                 anterior = novo;
 
                 novo->prox = NULL;;
@@ -189,6 +203,8 @@ Inimigo* inicializarInimigo(Inimigo *naveInimiga) {
 
                 novo->altura = 45;
                 novo->largura = 45;
+
+                novo->pontos = 20;
 
                 anterior = novo;
 
@@ -215,6 +231,8 @@ Inimigo* inicializarInimigo(Inimigo *naveInimiga) {
                 novo->altura = 45;
                 novo->largura = 45;
 
+                novo->pontos = 10;
+
                 anterior = novo;
 
                 novo->prox = NULL;;
@@ -232,6 +250,8 @@ Inimigo* inicializarInimigo(Inimigo *naveInimiga) {
 
                 novo->altura = 45;
                 novo->largura = 45;
+
+                novo->pontos = 10;
 
                 anterior = novo;
 
@@ -258,6 +278,8 @@ Inimigo* inicializarInimigo(Inimigo *naveInimiga) {
                 novo->altura = 45;
                 novo->largura = 45;
 
+                novo->pontos = 10;
+
                 anterior = novo;
 
                 novo->prox = NULL;;
@@ -275,6 +297,8 @@ Inimigo* inicializarInimigo(Inimigo *naveInimiga) {
 
                 novo->altura = 45;
                 novo->largura = 45;
+
+                novo->pontos = 10;
 
                 anterior = novo;
 
@@ -354,7 +378,107 @@ TiroJogador *adicionarTiro(TiroJogador *bullet, Jogador *um) {
     return bullet;
 }
 
-
+Inimigo *movimentacaoInimigos(Inimigo *stromtrooper, Jogador *um) {
+        
+    static float tempoMovimento = 0.0f;
+    static int direcao = 1;
+        
+    tempoMovimento += GetFrameTime();
+        
+    Inimigo *auxiliar = stromtrooper;
+        
+        
+    if (um->vidas != 0) {
+        
+        if (tempoMovimento >= 0.80f) {// a cada 0.80
+            
+            if (direcao == 1) {
+                
+                for (int i = 0; i < 55; i++) {
+                    
+                    if (auxiliar->x >= 750) {//checa se bateu antes de mover pra ele nao atravessar a parede q q é 800 mas tem que contar com a largura dele
+                        
+                        direcao = -1;//faz ele ir pra esquerda na proxima chamada da funcao
+                        
+                        auxiliar = stromtrooper;//auxiliar aponta pro comeco da lista
+                        
+                        for (int j = 0; j < 55; j++) {//se o if acontecer ele vai em todos os inimigos vivos e desce 20 (aumenta o y)
+                            
+                            auxiliar->y += 20;//quando bate na parede todos descem
+                            
+                            if (auxiliar->y + auxiliar->altura >= um->y) {//se chegar na altura da nave é gameover
+                                um->vidas = 0;
+                            }
+                            
+                            auxiliar = auxiliar->prox;//percorre todos
+                        }
+                        
+                        tempoMovimento = 0.0f;//reseta o tempo de movimento
+                        
+                        return stromtrooper;//retorna a posição que vao vificar
+                    }
+                    
+                    auxiliar = auxiliar->prox;//checa um por um pra ver se bateu na direita
+                }
+            }
+            
+            
+            auxiliar = stromtrooper;//se nao tiver retornado nada o auxiliar volta pra o comeco
+            
+            
+            if (direcao == -1) {//direcao pra esquerda
+                
+                for (int i = 0; i < 55; i++) {
+                    
+                    if (auxiliar->x <= 0) {//checa se bateu antes de mover pra ele nao atravessar a parede q é 0 so que no railib nao precisa diminuir da largura se so for pra direita
+                        
+                        direcao = 1;//se bateu troca pra direita
+                        
+                        auxiliar = stromtrooper;//faz auxiliar voltar pro comeco pra aumentar o y de todos
+                        
+                        for (int j = 0; j < 55; j++) {
+                            
+                            auxiliar->y += 20;//aumenta o y
+                            
+                            if (auxiliar->y + auxiliar->altura >= um->y) {
+                                um->vidas = 0;//verifica se chegou na area da nave
+                            }
+                            
+                            auxiliar = auxiliar->prox;//percorre todos da lista
+                        }
+                        
+                        tempoMovimento = 0.0f;//o "relogio" reseta
+                        
+                        return stromtrooper;//retorna a nova posicao
+                    }
+                    
+                    auxiliar = auxiliar->prox;//percorre todos pra ver se, se enquadra no if de bater na parede
+                }
+            }
+            
+            
+            auxiliar = stromtrooper;//volta auxiliar pro comeco
+            
+            
+            for (int i = 0; i < 55; i++) {//se retornou nada é pq nao bateu na parede
+                
+                if (direcao == 1) {
+                    auxiliar->x += 10;// move pra direita
+                }
+                
+                if (direcao == -1) {
+                    auxiliar->x -= 10;//move pra esquerda
+                }
+                
+                auxiliar = auxiliar->prox;//percorre todos
+            }
+            
+            tempoMovimento = 0.0f;//resta o timer
+        }
+    }
+        
+    return stromtrooper;//retorna a nova posição
+}
 
 
 TiroJogador *movimentacaoTiro(TiroJogador *bullet) {
@@ -547,6 +671,8 @@ int main(void) {
         bullet = adicionarTiro(bullet, primeiro);
 
         bullet = movimentacaoTiro(bullet);
+
+        naveInimiga = movimentacaoInimigos(naveInimiga, primeiro);
 
         BeginDrawing();
 
