@@ -47,6 +47,46 @@ typedef struct Inimigo {
 
 } Inimigo;
 
+typedef struct DeathStar{
+    
+    float largura;
+    float altura;
+
+    float velocidade;
+
+    float x;
+    float y;
+
+    int pontos;
+    int vivo;
+
+    float tempoSpawn;
+    
+} DeathStar;
+
+
+void inicializarEstrelaDaMorte(DeathStar *estrela) {
+    
+    if (estrela == NULL) {
+        return;
+    }
+        
+    estrela->largura = 160;
+    estrela->altura = 80;
+        
+    estrela->velocidade = 150;
+        
+    estrela->y = 35;
+    estrela->x = -60;
+        
+    estrela->pontos = 100;
+    estrela->vivo = 0;
+
+    estrela->tempoSpawn = 0.0f;
+
+}
+
+
 Inimigo* inicializarInimigo(Inimigo *naveInimiga) {
 
     Inimigo *anterior = naveInimiga;
@@ -338,7 +378,7 @@ TiroJogador *criarTiro(struct Jogador *um) {
     return novo;
 }
 
-TiroJogador *adicionarTiro(TiroJogador *bullet, Jogador *um) {
+TiroJogador *adicionarTiro(TiroJogador *bullet, Jogador *um,int *deathContador) {////////
 
     static float tempoDisparo = 0.20f;
 
@@ -373,9 +413,72 @@ TiroJogador *adicionarTiro(TiroJogador *bullet, Jogador *um) {
         }
 
         tempoDisparo = 0.0f;
+
+        (*deathContador)++;
     }
 
+    
+
     return bullet;
+}
+
+void movimentacaoEstrelaDaMorte(DeathStar *estrela, int *deathContador) {
+
+    float deslocamento;
+
+    static int direcao;//se vai pra esquerda ou pra direita
+
+    if (estrela->vivo == 0) {
+
+        estrela->tempoSpawn += GetFrameTime();
+
+        if (estrela->tempoSpawn >= 15.0f) {//espera 15 segundo pra spawnar
+
+            estrela->vivo = 1;//quando passa 15 segundos, a estrela muda o estado para vivo
+            estrela->tempoSpawn = 0.0f;// e o contador volta
+
+            if(*deathContador % 2 == 0){
+
+                estrela->x = -160;// se a quantidade de tiros for par ele vai da esquerda pra direita
+
+                direcao = 1;
+            }else{
+
+                estrela->x = 960;// se for impar da direita pra esquerda, feature do space invaders
+
+                direcao = -1;
+            }
+        }
+
+    } else {
+
+        //ele vai checar antes se e par ou impar pra deicidir se e esquerda ou direita
+        if(direcao == 1){
+
+            deslocamento = estrela->velocidade * GetFrameTime();
+
+            estrela->x += deslocamento;
+
+            if(estrela->x >= 800 + estrela->largura){//pra quando ele sumir totalmente da tela
+
+                estrela->vivo = 0;//se ele sair da tela ele vai ficar desativado por um tempo
+            }
+        }
+
+        if(direcao == -1){
+
+            deslocamento = estrela->velocidade * GetFrameTime();
+
+            estrela->x -= deslocamento;//mesma logica so que pra esquerda
+
+            if(estrela->x <= 0 - estrela->largura){//pra quando ele sumir totalmente da tela
+
+                estrela->vivo = 0;
+            }
+        }
+        
+
+    }
 }
 
 Inimigo *movimentacaoInimigos(Inimigo *stromtrooper, Jogador *um) {
@@ -597,22 +700,34 @@ void desenharTiro(TiroJogador *bullet, Texture2D texturaTiro) {//Solon
 
 void desenharInimigos(Inimigo *naveInimiga, Texture2D texturaInimigo) {//solon
 
-    Inimigo *auxiliar = naveInimiga;
+    Inimigo *auxiliar = naveInimiga;//aponta pra o começo da lista
 
-    while (auxiliar != NULL) {
+    while (auxiliar != NULL) {//vai percorrer a lista toda
 
-        if (auxiliar->vivo == 1) {
+        if (auxiliar->vivo == 1) {//se o inimigo tiver vivo
 
-            Rectangle origem = {0, 0, texturaInimigo.width, texturaInimigo.height};
+            Rectangle origem = {0, 0, texturaInimigo.width, texturaInimigo.height};//significa que voce quer a imagem inteira começando do pixel 0x0
 
-            Rectangle destino = {
-                auxiliar->x, auxiliar->y, auxiliar->largura, auxiliar->altura};
+            Rectangle destino = {auxiliar->x, auxiliar->y, auxiliar->largura, auxiliar->altura};//adequa a imagem para os parametros ja definidos
 
-            DrawTexturePro(texturaInimigo, origem, destino, (Vector2){0, 0}, 0, WHITE);
+            DrawTexturePro(texturaInimigo, origem, destino, (Vector2){0, 0}, 0, WHITE);//pega a textura, a imagem, a localizaçao e o tamanho da imagem, e vector é ponto de referencia
         }
 
-        auxiliar = auxiliar->prox;
+        auxiliar = auxiliar->prox;//move o ponteiro
     }
+}
+
+void desenharEstrelaDaMorte(DeathStar *estrela, Texture2D texturaDeath_Star) {
+
+    if (estrela == NULL || estrela->vivo == 0) {//se ainda nao tiver no tempo da estrela ela nao é desenhada
+        return;
+    }
+
+    Rectangle origem = {0, 0, texturaDeath_Star.width, texturaDeath_Star.height};
+
+    Rectangle destino = {estrela->x, estrela->y, estrela->largura, estrela->altura};
+
+    DrawTexturePro(texturaDeath_Star, origem, destino, (Vector2){0, 0}, 0, WHITE);
 }
 
 int main(void) {
@@ -622,6 +737,7 @@ int main(void) {
     Texture2D texturaNave = LoadTexture("assets/nave.png");
     Texture2D texturaTiro = LoadTexture("assets/tiro.png");
     Texture2D texturaInimigo = LoadTexture("assets/inimigo1.png");
+    Texture2D texturaDeath_Star = LoadTexture("assets/Death_Star.png");
 
     SetTargetFPS(60);
     
@@ -629,11 +745,12 @@ int main(void) {
 
     
     
-    if (primeiro == NULL) {
+    if (primeiro == NULL) {//nao tem free primeiro pq ele ja é null entao nao tem oq liberar
 
         UnloadTexture(texturaNave);
         UnloadTexture(texturaTiro);
         UnloadTexture(texturaInimigo);
+        UnloadTexture(texturaDeath_Star);
 
         CloseWindow();
 
@@ -646,20 +763,50 @@ int main(void) {
 
     Inimigo *naveInimiga = NULL;
 
+    int deathContador1 = 0;
+
     naveInimiga = inicializarInimigo(naveInimiga);
 
-    if (naveInimiga == NULL) {
+    if (naveInimiga == NULL) {//aqui tem free primeiro pq ele ja funcionou mas nao tem free nave pq a função ja libera
 
         free(primeiro);
 
         UnloadTexture(texturaNave);
         UnloadTexture(texturaTiro);
         UnloadTexture(texturaInimigo);
+        UnloadTexture(texturaDeath_Star);
 
         CloseWindow();
 
         return 1;
     }
+
+    DeathStar *estrela = malloc(sizeof(DeathStar));
+
+    if (estrela == NULL) {//aqui tem q ter os dois free menos o da estrela que ja é null
+
+        free(primeiro);
+
+        while (naveInimiga != NULL) {
+
+            Inimigo *auxiliar = naveInimiga;
+
+            naveInimiga = naveInimiga->prox;
+
+            free(auxiliar);
+        }
+
+        UnloadTexture(texturaNave);
+        UnloadTexture(texturaTiro);
+        UnloadTexture(texturaInimigo);
+        UnloadTexture(texturaDeath_Star);
+
+        CloseWindow();
+
+        return 1;
+    }
+
+    inicializarEstrelaDaMorte(estrela);
     
     
     
@@ -668,11 +815,13 @@ int main(void) {
 
         movimentacaoJogador(primeiro);
 
-        bullet = adicionarTiro(bullet, primeiro);
+        bullet = adicionarTiro(bullet, primeiro, &deathContador1);
 
         bullet = movimentacaoTiro(bullet);
 
         naveInimiga = movimentacaoInimigos(naveInimiga, primeiro);
+
+        movimentacaoEstrelaDaMorte(estrela, &deathContador1);
 
         BeginDrawing();
 
@@ -682,6 +831,8 @@ int main(void) {
 
         desenharInimigos(naveInimiga, texturaInimigo);
 
+        desenharEstrelaDaMorte(estrela, texturaDeath_Star);
+
         desenharTiro(bullet, texturaTiro);
 
         EndDrawing();
@@ -690,6 +841,7 @@ int main(void) {
     UnloadTexture(texturaNave);//libera a textura
     UnloadTexture(texturaTiro);
     UnloadTexture(texturaInimigo);
+    UnloadTexture(texturaDeath_Star);
 
     CloseWindow();
 
@@ -711,7 +863,9 @@ int main(void) {
     free(auxiliar);
 
     }
+
     
+    free(estrela);
     free(primeiro);
 
     return 0;
