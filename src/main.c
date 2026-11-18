@@ -64,6 +64,21 @@ typedef struct DeathStar{
     
 } DeathStar;
 
+typedef struct TiroInimigo{
+    
+    float largura;
+    float altura;
+    
+    float velocidade;
+    
+    float x;
+    float y;
+    
+    
+    struct TiroInimigo *prox;
+    
+}TiroInimigo;
+
 
 void inicializarEstrelaDaMorte(DeathStar *estrela) {
     
@@ -85,7 +100,113 @@ void inicializarEstrelaDaMorte(DeathStar *estrela) {
     estrela->tempoSpawn = 0.0f;
 
 }
+TiroInimigo *criarTiroInimigo(Inimigo *naveInimiga){
 
+    TiroInimigo *novo = malloc(sizeof(TiroInimigo));
+
+    if (novo == NULL) {
+        return NULL;
+    }
+
+    novo->largura = 6;
+    novo->altura = 16;
+    
+    novo->velocidade = 535;
+    
+    novo->x = naveInimiga->x + (naveInimiga->largura - novo->largura) / 2; //Centraliza o tiro na nave
+    novo->y = naveInimiga->y + naveInimiga->altura; //Faz o tiro nascer abaixo da nave inimiga pq ele nasce depois da altura e o y dele
+
+
+    novo->prox = NULL;
+
+    return novo;
+
+}
+
+Inimigo *escolherStormTrooper(Inimigo *naveInimiga){
+
+    int contador = 0;//contador
+
+    Inimigo *cont = naveInimiga;//ponteiro auxiliar para a conta
+
+    while(cont != NULL){//conta quantos inimigos estao vivos
+
+        if(cont->vivo == 1){//se tiver vivo incrementa 1
+
+            contador++;
+        }
+
+        cont = cont->prox;
+    }
+
+    if (contador == 0) {
+    return NULL;//se os inimigos estiverem mortos, trocanddo pra reviver
+    }
+
+    int randomizer = GetRandomValue(1, contador);//funcao de randomizar de 1 ate o valor de inimigos vivos, que é o contador
+
+    int contador2 = 0;//cria outro contador pra usar na selecao do inimigo
+
+    Inimigo *auxiliar = naveInimiga;//cria um ponteiro auxilair
+
+    while(auxiliar != NULL){
+
+
+        if(auxiliar->vivo == 1){//se tiver vivo o contador2 incrementa
+
+            contador2++;
+
+            if(contador2 == randomizer){//se tiver vivo e o contador 2 chegar ate o randomizer ele retorna o inimigo que vai atirar
+
+
+                return auxiliar;
+            }
+        }
+
+        auxiliar = auxiliar->prox;//move o ponteiro
+    }
+
+     return NULL;//se nao retornar o aleatorio ele retorna null
+
+}
+
+TiroInimigo *adicionarTiroInimigo(TiroInimigo *laser, Inimigo *naveInimiga){
+
+    static float tempoDisparo = 0.80f;
+
+    tempoDisparo += GetFrameTime();//espera o tempo de desparo pra atirar de novo, adicionar um tiro
+
+
+    if (tempoDisparo >= 1.00f) {
+
+        Inimigo *storm = escolherStormTrooper(naveInimiga);//pega a lista da nave pra ver qual ta vivo e retorna o aleatorio pra atirar
+
+        if (storm == NULL) { //se nao tiver atualizando todos os inimigos mortos
+            return laser;
+        }
+
+        TiroInimigo *novo = criarTiroInimigo(storm);//cria os atributos do tiro no aleatorio
+
+        if (novo == NULL) { //verfica se alocou certo
+            return laser;
+        }
+
+        novo->prox = laser;//o ponteiro antigo vai ser apontado pelo prox do novo
+        laser = novo;//e laser vai virar o novo, novo, assim o ciclo se repete
+
+        tempoDisparo = 0.0f;//zera pra proxima chamada
+    }
+
+    
+
+    return laser;//retorna a nova lista
+
+}
+
+TiroInimigo *movimentacaoTiroInimigo(TiroInimigo *laser){
+
+    //em progresso
+}
 
 Inimigo* inicializarInimigo(Inimigo *naveInimiga) {
 
@@ -102,18 +223,18 @@ Inimigo* inicializarInimigo(Inimigo *naveInimiga) {
 
             if (novo == NULL) {
 
-            Inimigo *auxiliar = naveInimiga;
+            Inimigo *auxiliar = naveInimiga;//se falhar a alocacao
 
             while (auxiliar != NULL) {
 
-                Inimigo *proximo = auxiliar->prox;
+                Inimigo *proximo = auxiliar->prox;//tem que percorrer todos os inimigosque foram feitos 
 
                 free(auxiliar);
 
                 auxiliar = proximo;
             }
 
-            return NULL;
+            return NULL;//e vai retornar null
         }
 
         if(i > -1 && i < 11){
@@ -122,7 +243,7 @@ Inimigo* inicializarInimigo(Inimigo *naveInimiga) {
                 naveInimiga = novo;
                 novo->prox = NULL;//quando é o primeiro ele aponta pra null e faz a nave inimiga apontar pra o comeco da lista
 
-                anterior = novo;// e o anterior vai ser o primeiro pq ainda nao tem anterior
+                anterior = novo;//e o anterior vai ser o primeiro pq ainda nao tem anterior
 
 
                 novo->largura = 45;
@@ -369,8 +490,8 @@ TiroJogador *criarTiro(struct Jogador *um) {
     
     novo->velocidade = 550;
     
-    novo->x = um->x + (um->largura - novo->largura) / 2; // Centraliza o tiro na nave
-    novo->y = um->y - novo->altura; // Faz o tiro nascer acima da nave
+    novo->x = um->x + (um->largura - novo->largura) / 2; //Centraliza o tiro na nave
+    novo->y = um->y - novo->altura; //faz o tiro nascer acima da nave pq ele nasce depois da altura e o y dele
 
 
     novo->prox = NULL;
@@ -382,44 +503,46 @@ TiroJogador *adicionarTiro(TiroJogador *bullet, Jogador *um,int *deathContador) 
 
     static float tempoDisparo = 0.20f;
 
-    tempoDisparo += GetFrameTime();
+    tempoDisparo += GetFrameTime();//espera o tempo de desparo pra atirar de novo, adicionar um tiro
 
     int contador = 0;
 
-    TiroJogador *cont = bullet;
+    TiroJogador *cont = bullet;//um ponteiro auxilair pra contador
 
-    while (cont != NULL) {
+    while (cont != NULL) {//conta quantos tiros tem
 
         contador++;
 
         cont = cont->prox;
     }
 
-    if (IsKeyDown(KEY_SPACE) && tempoDisparo >= 0.20f && contador < 2) {
+    if (IsKeyDown(KEY_SPACE) && tempoDisparo >= 0.20f && contador < 2) {//se apertar espaco,tiver passado 0.20, e tiver 2 ou menos tiros
 
-        TiroJogador *novo = criarTiro(um);
+        TiroJogador *novo = criarTiro(um);//cria um novo tiro
 
         if (novo == NULL) {
-            return bullet;
+            return bullet;//se falhar retorna null
         }
 
         if (contador == 0) {
 
-            bullet = novo; // Primeiro tiro vira o início da lista
+            bullet = novo; //primeiro tiro ja que o contador nao mudou
 
         } else if (contador == 1) {
 
-            bullet->prox = novo; // O único tiro existente aponta para o novo
+            bullet->prox = novo;//o inicio da lista aponta pra o novo tiro, o segundo
         }
 
-        tempoDisparo = 0.0f;
+        tempoDisparo = 0.0f;//zera o tempo pra comecar o processo de novo
 
-        (*deathContador)++;
+
+
+        (*deathContador)++;//isso é pra funcao da death star de se for par ir da esquerda pra direita e se for impar da direita pra esquerda
     }
 
     
 
-    return bullet;
+    return bullet;//retorna a nova lista
 }
 
 void movimentacaoEstrelaDaMorte(DeathStar *estrela, int *deathContador) {
@@ -499,7 +622,7 @@ Inimigo *movimentacaoInimigos(Inimigo *stromtrooper, Jogador *um) {
                 
                 for (int i = 0; i < 55; i++) {
                     
-                    if (auxiliar->x >= 750) {//checa se bateu antes de mover pra ele nao atravessar a parede q q é 800 mas tem que contar com a largura dele
+                    if (auxiliar->vivo == 1 && auxiliar->x >= 750) {//checa se bateu antes de mover pra ele nao atravessar a parede q q é 800 mas tem que contar com a largura dele
                         
                         direcao = -1;//faz ele ir pra esquerda na proxima chamada da funcao
                         
@@ -509,7 +632,7 @@ Inimigo *movimentacaoInimigos(Inimigo *stromtrooper, Jogador *um) {
                             
                             auxiliar->y += 20;//quando bate na parede todos descem
                             
-                            if (auxiliar->y + auxiliar->altura >= um->y) {//se chegar na altura da nave é gameover
+                            if (auxiliar->vivo == 1 && auxiliar->y + auxiliar->altura >= um->y) {//se chegar na altura da nave do jogador é gameover
                                 um->vidas = 0;
                             }
                             
@@ -533,7 +656,7 @@ Inimigo *movimentacaoInimigos(Inimigo *stromtrooper, Jogador *um) {
                 
                 for (int i = 0; i < 55; i++) {
                     
-                    if (auxiliar->x <= 0) {//checa se bateu antes de mover pra ele nao atravessar a parede q é 0 so que no railib nao precisa diminuir da largura se so for pra direita
+                    if (auxiliar->vivo == 1 && auxiliar->x <= 0) {//checa se bateu antes de mover pra ele nao atravessar a parede q é 0 so que no railib nao precisa diminuir da largura se so for pra direita
                         
                         direcao = 1;//se bateu troca pra direita
                         
@@ -543,7 +666,7 @@ Inimigo *movimentacaoInimigos(Inimigo *stromtrooper, Jogador *um) {
                             
                             auxiliar->y += 20;//aumenta o y
                             
-                            if (auxiliar->y + auxiliar->altura >= um->y) {
+                            if (auxiliar->vivo == 1 && auxiliar->y + auxiliar->altura >= um->y) {
                                 um->vidas = 0;//verifica se chegou na area da nave
                             }
                             
@@ -704,7 +827,7 @@ void desenharInimigos(Inimigo *naveInimiga, Texture2D texturaInimigo) {//solon
 
     while (auxiliar != NULL) {//vai percorrer a lista toda
 
-        if (auxiliar->vivo == 1) {//se o inimigo tiver vivo
+        if (auxiliar->vivo == 1) {//se o inimigo tiver vivo ele desenha
 
             Rectangle origem = {0, 0, texturaInimigo.width, texturaInimigo.height};//significa que voce quer a imagem inteira começando do pixel 0x0
 
@@ -715,6 +838,60 @@ void desenharInimigos(Inimigo *naveInimiga, Texture2D texturaInimigo) {//solon
 
         auxiliar = auxiliar->prox;//move o ponteiro
     }
+}
+
+TiroJogador *colisaoTiroNoInimigo(TiroJogador *bullet, Inimigo *naveInimiga){
+    
+    
+    TiroJogador *auxiliarTiro = bullet;//pra mover em bullet
+    
+    Inimigo *auxiliarInimigo = naveInimiga;//pra mover em nave
+
+    TiroJogador *anteriorTiro = NULL;//pra dar free em bullet que colidir
+    
+    while(auxiliarTiro != NULL){
+        
+        Rectangle hitboxTiro = {auxiliarTiro->x, auxiliarTiro->y ,auxiliarTiro->largura ,auxiliarTiro->altura};//declara o hitbox onde o tiro ta e qual a area
+        
+        while(auxiliarInimigo != NULL){//percorre todos os inimigos 
+            
+            
+            Rectangle hitboxInimigo = {auxiliarInimigo->x, auxiliarInimigo->y ,auxiliarInimigo->largura ,auxiliarInimigo->altura};//ve se acertou o hitbox criando o hitbox pra cada inimgio
+            //conforme o ponteiro se move
+
+            if (auxiliarInimigo->vivo == 1 && CheckCollisionRecs(hitboxTiro, hitboxInimigo)) {//verifica se o acertou um inimigo visivel(vivo)
+                
+                auxiliarInimigo->vivo = 0;//impede que ele seja desenhado, bata na parede, ou de gameover
+
+                if (anteriorTiro == NULL) {
+
+                    bullet = auxiliarTiro->prox;//se esse for null quer dizer que é o primeiro tiro, e nao fez um while todo ainda
+                    //bullet vai apontar pro segundo tiro que vai virar o "primeiro"
+                } else {
+
+                    anteriorTiro->prox = auxiliarTiro->prox; //se chegar no else foi o segundo tiro, fazendo o primeiro apontar pra null
+                }
+
+                free(auxiliarTiro); //libera qualquer que for o tiro
+
+                return bullet; //retorna a lista com o tiro colidido liberado
+            }
+    
+            
+            
+            
+            auxiliarInimigo = auxiliarInimigo->prox;//move a lista pra analisar todos os inimigos
+        }
+        
+        auxiliarInimigo = naveInimiga;//volta o auxiliar pro começo pra conseguir ver todos inimigois de novo em caso de outro tiro acertar
+
+        anteriorTiro = auxiliarTiro;//o anterior vai apontar pro primeiro tiro
+        
+        auxiliarTiro = auxiliarTiro->prox;//percorre a lista pra checar se alguma das balas acertou e vai pro segundo tiro
+        
+    }
+    
+    return bullet;//retorna a lista
 }
 
 void desenharEstrelaDaMorte(DeathStar *estrela, Texture2D texturaDeath_Star) {
@@ -762,6 +939,8 @@ int main(void) {
     TiroJogador *bullet = NULL;
 
     Inimigo *naveInimiga = NULL;
+
+    TiroInimigo *tirosInimigos = NULL;
 
     int deathContador1 = 0;
 
@@ -820,6 +999,8 @@ int main(void) {
         bullet = movimentacaoTiro(bullet);
 
         naveInimiga = movimentacaoInimigos(naveInimiga, primeiro);
+
+        bullet = colisaoTiroNoInimigo(bullet, naveInimiga);
 
         movimentacaoEstrelaDaMorte(estrela, &deathContador1);
 
