@@ -205,7 +205,121 @@ TiroInimigo *adicionarTiroInimigo(TiroInimigo *laser, Inimigo *naveInimiga){
 
 TiroInimigo *movimentacaoTiroInimigo(TiroInimigo *laser){
 
-    //em progresso
+    TiroInimigo *auxiliar = laser;
+    TiroInimigo *anterior = NULL;
+
+    float deslocamento;
+
+    while (auxiliar != NULL) {//percorrer
+
+        deslocamento = auxiliar->velocidade * GetFrameTime();//move o tiro pra baixo
+
+        auxiliar->y = auxiliar->y + deslocamento;//move o tiro pra baixo mesma logica do tiro jogador
+
+        if (auxiliar->y >= 600) {//verifica se o tiro saiu da tela
+
+            if (auxiliar == laser) {//se auxiliar for = ao inicio
+
+                laser = auxiliar->prox;//se tiver dado um tiro o inicio vai ser null pelo aux->prox ser null, e se for o primeiro tiro o 2 vira o primeiro
+                free(auxiliar);//libera o que saiu da tela
+
+                auxiliar = laser;//e o auxiliar volta a ser o primeiro
+
+            } else {
+
+                anterior->prox = auxiliar->prox;// ja que o primeiro tiro ja ocorreu o anterior apontava pra o 1, aqui ele ta fazendo o anterior prox apontar pra null ou proximo tiro
+
+                free(auxiliar);//libera o do meio/ou ultimo 
+
+                auxiliar = anterior->prox;//se for o ultimo, o anteiror prox aponta pra null, e termina o while com aux null
+                
+            }
+
+        } else {
+
+            anterior = auxiliar;//se o tiro atual continua na tela, o anterior vira auxi, 
+
+            auxiliar = auxiliar->prox;// e auxiliar para o proximo, se for null ele encerra o while tambem
+        }
+    }
+
+    return laser;//retorna ou null ou o inicio da lista
+}
+
+TiroInimigo *colisaoTiroDOInimigo(TiroInimigo *laser, Jogador *um){
+
+    TiroInimigo *auxiliarTiroInimigo = laser;//pra mover em bullet
+    
+    TiroInimigo *anterior = NULL;
+    
+        
+    while(auxiliarTiroInimigo != NULL){
+            
+        Rectangle hitboxTiroInimigo = {auxiliarTiroInimigo->x, auxiliarTiroInimigo->y ,auxiliarTiroInimigo->largura ,auxiliarTiroInimigo->altura};//declara o hitbox onde o tiro ta e qual a area
+        
+        Rectangle hitboxJogador = {um->x, um->y ,um->largura , um->altura};
+        
+            
+        if(CheckCollisionRecs(hitboxJogador, hitboxTiroInimigo)){//se bateu no jogador
+            if (auxiliarTiroInimigo == laser) {//se auxiliar for = ao inicio
+                
+                if (um->vidas > 0) {
+                    
+                    um->vidas--;
+                    
+                }
+                            
+                laser = auxiliarTiroInimigo->prox;//se tiver dado um tiro o inicio vai ser null pelo aux->prox ser null, e se for o primeiro tiro o 2 vira o primeiro
+                free(auxiliarTiroInimigo);//libera o que saiu da tela
+
+                auxiliarTiroInimigo = laser;//e o auxiliar volta a ser o primeiro e se for nul encerra o while
+
+            } else {//ele vai estar no segundo tiro da lista
+                
+                if (um->vidas > 0) {
+                    
+                    um->vidas--;
+                    
+                }
+                
+
+                anterior->prox = auxiliarTiroInimigo->prox;// ja que o primeiro tiro ja ocorreu o anterior apontava pra o 1, aqui ele ta fazendo o anterior-prox apontar pra null ou proximo tiro
+
+                free(auxiliarTiroInimigo);//libera o do meio/ou ultimo 
+
+                auxiliarTiroInimigo = anterior->prox;//se for o ultimo, o anteiror prox aponta pra null, e termina o while com aux null
+                
+            }
+
+        } else {
+
+            anterior = auxiliarTiroInimigo;//se o tiro atual continua na tela, o anterior vira auxi, 
+
+            auxiliarTiroInimigo = auxiliarTiroInimigo->prox;// e auxiliar para o proximo, se for null ele encerra o while tambem
+        }
+            
+    }
+        
+    return laser;//retorna a lista
+        
+}
+        
+
+
+void desenharTiroInimigo(TiroInimigo *laser, Texture2D texturaTiroInimigo) {
+
+    TiroInimigo *auxiliar = laser;
+
+    while (auxiliar != NULL) {
+
+        Rectangle origem = {0, 0, texturaTiroInimigo.width, texturaTiroInimigo.height};
+
+        Rectangle destino = {auxiliar->x, auxiliar->y, auxiliar->largura, auxiliar->altura};
+
+        DrawTexturePro(texturaTiroInimigo, origem, destino, (Vector2){0, 0}, 0, WHITE);
+
+        auxiliar = auxiliar->prox;
+    }
 }
 
 Inimigo* inicializarInimigo(Inimigo *naveInimiga) {
@@ -477,133 +591,6 @@ Inimigo* inicializarInimigo(Inimigo *naveInimiga) {
 
 }
 
-TiroJogador *criarTiro(struct Jogador *um) {
-
-    TiroJogador *novo = malloc(sizeof(TiroJogador));
-
-    if (novo == NULL) {
-        return NULL;
-    }
-
-    novo->largura = 6;
-    novo->altura = 16;
-    
-    novo->velocidade = 550;
-    
-    novo->x = um->x + (um->largura - novo->largura) / 2; //Centraliza o tiro na nave
-    novo->y = um->y - novo->altura; //faz o tiro nascer acima da nave pq ele nasce depois da altura e o y dele
-
-
-    novo->prox = NULL;
-
-    return novo;
-}
-
-TiroJogador *adicionarTiro(TiroJogador *bullet, Jogador *um,int *deathContador) {////////
-
-    static float tempoDisparo = 0.20f;
-
-    tempoDisparo += GetFrameTime();//espera o tempo de desparo pra atirar de novo, adicionar um tiro
-
-    int contador = 0;
-
-    TiroJogador *cont = bullet;//um ponteiro auxilair pra contador
-
-    while (cont != NULL) {//conta quantos tiros tem
-
-        contador++;
-
-        cont = cont->prox;
-    }
-
-    if (IsKeyDown(KEY_SPACE) && tempoDisparo >= 0.20f && contador < 2) {//se apertar espaco,tiver passado 0.20, e tiver 2 ou menos tiros
-
-        TiroJogador *novo = criarTiro(um);//cria um novo tiro
-
-        if (novo == NULL) {
-            return bullet;//se falhar retorna null
-        }
-
-        if (contador == 0) {
-
-            bullet = novo; //primeiro tiro ja que o contador nao mudou
-
-        } else if (contador == 1) {
-
-            bullet->prox = novo;//o inicio da lista aponta pra o novo tiro, o segundo
-        }
-
-        tempoDisparo = 0.0f;//zera o tempo pra comecar o processo de novo
-
-
-
-        (*deathContador)++;//isso é pra funcao da death star de se for par ir da esquerda pra direita e se for impar da direita pra esquerda
-    }
-
-    
-
-    return bullet;//retorna a nova lista
-}
-
-void movimentacaoEstrelaDaMorte(DeathStar *estrela, int *deathContador) {
-
-    float deslocamento;
-
-    static int direcao;//se vai pra esquerda ou pra direita
-
-    if (estrela->vivo == 0) {
-
-        estrela->tempoSpawn += GetFrameTime();
-
-        if (estrela->tempoSpawn >= 15.0f) {//espera 15 segundo pra spawnar
-
-            estrela->vivo = 1;//quando passa 15 segundos, a estrela muda o estado para vivo
-            estrela->tempoSpawn = 0.0f;// e o contador volta
-
-            if(*deathContador % 2 == 0){
-
-                estrela->x = -160;// se a quantidade de tiros for par ele vai da esquerda pra direita
-
-                direcao = 1;
-            }else{
-
-                estrela->x = 960;// se for impar da direita pra esquerda, feature do space invaders
-
-                direcao = -1;
-            }
-        }
-
-    } else {
-
-        //ele vai checar antes se e par ou impar pra deicidir se e esquerda ou direita
-        if(direcao == 1){
-
-            deslocamento = estrela->velocidade * GetFrameTime();
-
-            estrela->x += deslocamento;
-
-            if(estrela->x >= 800 + estrela->largura){//pra quando ele sumir totalmente da tela
-
-                estrela->vivo = 0;//se ele sair da tela ele vai ficar desativado por um tempo
-            }
-        }
-
-        if(direcao == -1){
-
-            deslocamento = estrela->velocidade * GetFrameTime();
-
-            estrela->x -= deslocamento;//mesma logica so que pra esquerda
-
-            if(estrela->x <= 0 - estrela->largura){//pra quando ele sumir totalmente da tela
-
-                estrela->vivo = 0;
-            }
-        }
-        
-
-    }
-}
-
 Inimigo *movimentacaoInimigos(Inimigo *stromtrooper, Jogador *um) {
         
     static float tempoMovimento = 0.0f;
@@ -706,6 +693,92 @@ Inimigo *movimentacaoInimigos(Inimigo *stromtrooper, Jogador *um) {
     return stromtrooper;//retorna a nova posição
 }
 
+void desenharInimigos(Inimigo *naveInimiga, Texture2D texturaInimigo) {//solon
+
+    Inimigo *auxiliar = naveInimiga;//aponta pra o começo da lista
+
+    while (auxiliar != NULL) {//vai percorrer a lista toda
+
+        if (auxiliar->vivo == 1) {//se o inimigo tiver vivo ele desenha
+
+            Rectangle origem = {0, 0, texturaInimigo.width, texturaInimigo.height};//significa que voce quer a imagem inteira começando do pixel 0x0
+
+            Rectangle destino = {auxiliar->x, auxiliar->y, auxiliar->largura, auxiliar->altura};//adequa a imagem para os parametros ja definidos
+
+            DrawTexturePro(texturaInimigo, origem, destino, (Vector2){0, 0}, 0, WHITE);//pega a textura, a imagem, a localizaçao e o tamanho da imagem, e vector é ponto de referencia
+        }
+
+        auxiliar = auxiliar->prox;//move o ponteiro
+    }
+}
+
+TiroJogador *criarTiro(struct Jogador *um) {
+
+    TiroJogador *novo = malloc(sizeof(TiroJogador));
+
+    if (novo == NULL) {
+        return NULL;
+    }
+
+    novo->largura = 6;
+    novo->altura = 16;
+    
+    novo->velocidade = 550;
+    
+    novo->x = um->x + (um->largura - novo->largura) / 2; //Centraliza o tiro na nave
+    novo->y = um->y - novo->altura; //faz o tiro nascer acima da nave pq ele nasce depois da altura e o y dele
+
+
+    novo->prox = NULL;
+
+    return novo;
+}
+
+TiroJogador *adicionarTiro(TiroJogador *bullet, Jogador *um,int *deathContador) {////////
+
+    static float tempoDisparo = 0.20f;
+
+    tempoDisparo += GetFrameTime();//espera o tempo de desparo pra atirar de novo, adicionar um tiro
+
+    int contador = 0;
+
+    TiroJogador *cont = bullet;//um ponteiro auxilair pra contador
+
+    while (cont != NULL) {//conta quantos tiros tem
+
+        contador++;
+
+        cont = cont->prox;
+    }
+
+    if (IsKeyDown(KEY_SPACE) && tempoDisparo >= 0.20f && contador < 2) {//se apertar espaco,tiver passado 0.20, e tiver 2 ou menos tiros
+
+        TiroJogador *novo = criarTiro(um);//cria um novo tiro
+
+        if (novo == NULL) {
+            return bullet;//se falhar retorna null
+        }
+
+        if (contador == 0) {
+
+            bullet = novo; //primeiro tiro ja que o contador nao mudou
+
+        } else if (contador == 1) {
+
+            bullet->prox = novo;//o inicio da lista aponta pra o novo tiro, o segundo
+        }
+
+        tempoDisparo = 0.0f;//zera o tempo pra comecar o processo de novo
+
+
+
+        (*deathContador)++;//isso é pra funcao da death star de se for par ir da esquerda pra direita e se for impar da direita pra esquerda
+    }
+
+    
+
+    return bullet;//retorna a nova lista
+}
 
 TiroJogador *movimentacaoTiro(TiroJogador *bullet) {
 
@@ -720,11 +793,11 @@ TiroJogador *movimentacaoTiro(TiroJogador *bullet) {
 
         auxiliar->y = auxiliar->y - deslocamento;//move o tiro pra cima
 
-        if (auxiliar->y + auxiliar->altura < 0) {
+        if (auxiliar->y + auxiliar->altura < 0) {//verifica se saiu completamente de tela
 
-            if (auxiliar == bullet) {//se for o do começo
+            if (auxiliar == bullet) {//se auxiliar for = ao inicio
 
-                bullet = auxiliar->prox;//pq mesmo se so tiver dado um tiro ele vai retornar NULL pq prox vai ser null, e se nao for prox vai ser o tiro 2 que vira o tiro 1
+                bullet = auxiliar->prox;//se tiver dado um tiro o inicio vai ser null pelo aux->prox ser null, e se for o primeiro tiro o 2 vira o primeiro 2 que vira o tiro 1
 
                 free(auxiliar);
 
@@ -741,7 +814,7 @@ TiroJogador *movimentacaoTiro(TiroJogador *bullet) {
 
         } else {
 
-            anterior = auxiliar;// esse else sempre acontece pq o segundo tiro nao pdoe sair sem o priemiro, entao anterior vai apontar pra auxiliar
+            anterior = auxiliar;// esse acontece pq o segundo tiro nao pdoe sair sem o 1, entao anterior vai apontar pra auxiliar
 
             auxiliar = auxiliar->prox;// e auxiliar para o proximo
         }
@@ -749,6 +822,149 @@ TiroJogador *movimentacaoTiro(TiroJogador *bullet) {
 
     return bullet;//retorna ou null ou o inicio da lista
 }
+
+TiroJogador *colisaoTiroDOJogador(TiroJogador *bullet, Inimigo *naveInimiga){
+    
+    
+    TiroJogador *auxiliarTiro = bullet;//pra mover em bullet
+    
+    Inimigo *auxiliarInimigo = naveInimiga;//pra mover em nave
+
+    TiroJogador *anteriorTiro = NULL;//pra dar free em bullet que colidir
+    
+    while(auxiliarTiro != NULL){
+        
+        Rectangle hitboxTiro = {auxiliarTiro->x, auxiliarTiro->y ,auxiliarTiro->largura ,auxiliarTiro->altura};//declara o hitbox onde o tiro ta e qual a area
+        
+        while(auxiliarInimigo != NULL){//percorre todos os inimigos 
+            
+            
+            Rectangle hitboxInimigo = {auxiliarInimigo->x, auxiliarInimigo->y ,auxiliarInimigo->largura ,auxiliarInimigo->altura};//ve se acertou o hitbox criando o hitbox pra cada inimgio
+            //conforme o ponteiro se move
+
+            if (auxiliarInimigo->vivo == 1 && CheckCollisionRecs(hitboxTiro, hitboxInimigo)) {//verifica se o acertou um inimigo visivel(vivo)
+                
+                auxiliarInimigo->vivo = 0;//impede que ele seja desenhado, bata na parede, ou de gameover
+
+                if (anteriorTiro == NULL) {
+
+                    bullet = auxiliarTiro->prox;//se esse for null quer dizer que é o primeiro tiro, e nao fez um while todo ainda
+                    //bullet vai apontar pro segundo tiro que vai virar o "primeiro"
+                } else {
+
+                    anteriorTiro->prox = auxiliarTiro->prox; //se chegar no else foi o segundo tiro, fazendo o primeiro apontar pra null
+                }
+
+                free(auxiliarTiro); //libera qualquer que for o tiro
+
+                return bullet; //retorna a lista com o tiro colidido liberado
+            }
+    
+            
+            
+            
+            auxiliarInimigo = auxiliarInimigo->prox;//move a lista pra analisar todos os inimigos
+        }
+        
+        auxiliarInimigo = naveInimiga;//volta o auxiliar pro começo pra conseguir ver todos inimigois de novo em caso de outro tiro acertar
+
+        anteriorTiro = auxiliarTiro;//o anterior vai apontar pro primeiro tiro
+        
+        auxiliarTiro = auxiliarTiro->prox;//percorre a lista pra checar se alguma das balas acertou e vai pro segundo tiro
+        
+    }
+    
+    return bullet;//retorna a lista
+}
+
+void desenharTiro(TiroJogador *bullet, Texture2D texturaTiro) {//Solon
+
+    TiroJogador *auxiliar = bullet;
+
+    while (auxiliar != NULL) {
+
+        Rectangle origem = {0, 0, texturaTiro.width, texturaTiro.height};
+
+        Rectangle destino = {auxiliar->x, auxiliar->y, auxiliar->largura, auxiliar->altura};
+
+        DrawTexturePro(texturaTiro, origem, destino, (Vector2){0, 0}, 0, WHITE);
+
+        auxiliar = auxiliar->prox;
+    }
+}
+
+void movimentacaoEstrelaDaMorte(DeathStar *estrela, int *deathContador) {
+
+    float deslocamento;
+
+    static int direcao;//se vai pra esquerda ou pra direita
+
+    if (estrela->vivo == 0) {
+
+        estrela->tempoSpawn += GetFrameTime();
+
+        if (estrela->tempoSpawn >= 15.0f) {//espera 15 segundo pra spawnar
+
+            estrela->vivo = 1;//quando passa 15 segundos, a estrela muda o estado para vivo
+            estrela->tempoSpawn = 0.0f;// e o contador volta
+
+            if(*deathContador % 2 == 0){
+
+                estrela->x = -160;// se a quantidade de tiros for par ele vai da esquerda pra direita
+
+                direcao = 1;
+            }else{
+
+                estrela->x = 960;// se for impar da direita pra esquerda, feature do space invaders
+
+                direcao = -1;
+            }
+        }
+
+    } else {
+
+        //ele vai checar antes se e par ou impar pra deicidir se e esquerda ou direita
+        if(direcao == 1){
+
+            deslocamento = estrela->velocidade * GetFrameTime();
+
+            estrela->x += deslocamento;
+
+            if(estrela->x >= 800 + estrela->largura){//pra quando ele sumir totalmente da tela
+
+                estrela->vivo = 0;//se ele sair da tela ele vai ficar desativado por um tempo
+            }
+        }
+
+        if(direcao == -1){
+
+            deslocamento = estrela->velocidade * GetFrameTime();
+
+            estrela->x -= deslocamento;//mesma logica so que pra esquerda
+
+            if(estrela->x <= 0 - estrela->largura){//pra quando ele sumir totalmente da tela
+
+                estrela->vivo = 0;
+            }
+        }
+        
+
+    }
+}
+
+void desenharEstrelaDaMorte(DeathStar *estrela, Texture2D texturaDeath_Star) {
+
+    if (estrela == NULL || estrela->vivo == 0) {//se ainda nao tiver no tempo da estrela ela nao é desenhada
+        return;
+    }
+
+    Rectangle origem = {0, 0, texturaDeath_Star.width, texturaDeath_Star.height};
+
+    Rectangle destino = {estrela->x, estrela->y, estrela->largura, estrela->altura};
+
+    DrawTexturePro(texturaDeath_Star, origem, destino, (Vector2){0, 0}, 0, WHITE);
+}
+
 
 void inicializarJogador(struct Jogador *um){
     
@@ -805,107 +1021,6 @@ void desenharNave(struct Jogador *um, Texture2D textura){//Solon
 
 }
 
-void desenharTiro(TiroJogador *bullet, Texture2D texturaTiro) {//Solon
-
-    TiroJogador *auxiliar = bullet;
-
-    while (auxiliar != NULL) {
-
-        Rectangle origem = {0, 0, texturaTiro.width, texturaTiro.height};
-
-        Rectangle destino = {auxiliar->x, auxiliar->y, auxiliar->largura, auxiliar->altura};
-
-        DrawTexturePro(texturaTiro, origem, destino, (Vector2){0, 0}, 0, WHITE);
-
-        auxiliar = auxiliar->prox;
-    }
-}
-
-void desenharInimigos(Inimigo *naveInimiga, Texture2D texturaInimigo) {//solon
-
-    Inimigo *auxiliar = naveInimiga;//aponta pra o começo da lista
-
-    while (auxiliar != NULL) {//vai percorrer a lista toda
-
-        if (auxiliar->vivo == 1) {//se o inimigo tiver vivo ele desenha
-
-            Rectangle origem = {0, 0, texturaInimigo.width, texturaInimigo.height};//significa que voce quer a imagem inteira começando do pixel 0x0
-
-            Rectangle destino = {auxiliar->x, auxiliar->y, auxiliar->largura, auxiliar->altura};//adequa a imagem para os parametros ja definidos
-
-            DrawTexturePro(texturaInimigo, origem, destino, (Vector2){0, 0}, 0, WHITE);//pega a textura, a imagem, a localizaçao e o tamanho da imagem, e vector é ponto de referencia
-        }
-
-        auxiliar = auxiliar->prox;//move o ponteiro
-    }
-}
-
-TiroJogador *colisaoTiroNoInimigo(TiroJogador *bullet, Inimigo *naveInimiga){
-    
-    
-    TiroJogador *auxiliarTiro = bullet;//pra mover em bullet
-    
-    Inimigo *auxiliarInimigo = naveInimiga;//pra mover em nave
-
-    TiroJogador *anteriorTiro = NULL;//pra dar free em bullet que colidir
-    
-    while(auxiliarTiro != NULL){
-        
-        Rectangle hitboxTiro = {auxiliarTiro->x, auxiliarTiro->y ,auxiliarTiro->largura ,auxiliarTiro->altura};//declara o hitbox onde o tiro ta e qual a area
-        
-        while(auxiliarInimigo != NULL){//percorre todos os inimigos 
-            
-            
-            Rectangle hitboxInimigo = {auxiliarInimigo->x, auxiliarInimigo->y ,auxiliarInimigo->largura ,auxiliarInimigo->altura};//ve se acertou o hitbox criando o hitbox pra cada inimgio
-            //conforme o ponteiro se move
-
-            if (auxiliarInimigo->vivo == 1 && CheckCollisionRecs(hitboxTiro, hitboxInimigo)) {//verifica se o acertou um inimigo visivel(vivo)
-                
-                auxiliarInimigo->vivo = 0;//impede que ele seja desenhado, bata na parede, ou de gameover
-
-                if (anteriorTiro == NULL) {
-
-                    bullet = auxiliarTiro->prox;//se esse for null quer dizer que é o primeiro tiro, e nao fez um while todo ainda
-                    //bullet vai apontar pro segundo tiro que vai virar o "primeiro"
-                } else {
-
-                    anteriorTiro->prox = auxiliarTiro->prox; //se chegar no else foi o segundo tiro, fazendo o primeiro apontar pra null
-                }
-
-                free(auxiliarTiro); //libera qualquer que for o tiro
-
-                return bullet; //retorna a lista com o tiro colidido liberado
-            }
-    
-            
-            
-            
-            auxiliarInimigo = auxiliarInimigo->prox;//move a lista pra analisar todos os inimigos
-        }
-        
-        auxiliarInimigo = naveInimiga;//volta o auxiliar pro começo pra conseguir ver todos inimigois de novo em caso de outro tiro acertar
-
-        anteriorTiro = auxiliarTiro;//o anterior vai apontar pro primeiro tiro
-        
-        auxiliarTiro = auxiliarTiro->prox;//percorre a lista pra checar se alguma das balas acertou e vai pro segundo tiro
-        
-    }
-    
-    return bullet;//retorna a lista
-}
-
-void desenharEstrelaDaMorte(DeathStar *estrela, Texture2D texturaDeath_Star) {
-
-    if (estrela == NULL || estrela->vivo == 0) {//se ainda nao tiver no tempo da estrela ela nao é desenhada
-        return;
-    }
-
-    Rectangle origem = {0, 0, texturaDeath_Star.width, texturaDeath_Star.height};
-
-    Rectangle destino = {estrela->x, estrela->y, estrela->largura, estrela->altura};
-
-    DrawTexturePro(texturaDeath_Star, origem, destino, (Vector2){0, 0}, 0, WHITE);
-}
 
 int main(void) {
 
@@ -915,6 +1030,7 @@ int main(void) {
     Texture2D texturaTiro = LoadTexture("assets/tiro.png");
     Texture2D texturaInimigo = LoadTexture("assets/inimigo1.png");
     Texture2D texturaDeath_Star = LoadTexture("assets/Death_Star.png");
+    Texture2D texturaTiroInimigo = LoadTexture("assets/tiroInimigo.png");
 
     SetTargetFPS(60);
     
@@ -928,6 +1044,7 @@ int main(void) {
         UnloadTexture(texturaTiro);
         UnloadTexture(texturaInimigo);
         UnloadTexture(texturaDeath_Star);
+        UnloadTexture(texturaTiroInimigo);
 
         CloseWindow();
 
@@ -954,6 +1071,7 @@ int main(void) {
         UnloadTexture(texturaTiro);
         UnloadTexture(texturaInimigo);
         UnloadTexture(texturaDeath_Star);
+        UnloadTexture(texturaTiroInimigo);
 
         CloseWindow();
 
@@ -979,6 +1097,7 @@ int main(void) {
         UnloadTexture(texturaTiro);
         UnloadTexture(texturaInimigo);
         UnloadTexture(texturaDeath_Star);
+        UnloadTexture(texturaTiroInimigo);
 
         CloseWindow();
 
@@ -990,7 +1109,7 @@ int main(void) {
     
     
 
-    while (!WindowShouldClose()) {
+    while (!WindowShouldClose() && primeiro->vidas > 0) {
 
         movimentacaoJogador(primeiro);
 
@@ -999,10 +1118,15 @@ int main(void) {
         bullet = movimentacaoTiro(bullet);
 
         naveInimiga = movimentacaoInimigos(naveInimiga, primeiro);
+        
+        tirosInimigos = colisaoTiroDOInimigo(tirosInimigos, primeiro);
 
-        bullet = colisaoTiroNoInimigo(bullet, naveInimiga);
+        bullet = colisaoTiroDOJogador(bullet, naveInimiga);
 
         movimentacaoEstrelaDaMorte(estrela, &deathContador1);
+        
+        tirosInimigos = adicionarTiroInimigo(tirosInimigos, naveInimiga);
+        tirosInimigos = movimentacaoTiroInimigo(tirosInimigos);
 
         BeginDrawing();
 
@@ -1011,6 +1135,8 @@ int main(void) {
         desenharNave(primeiro, texturaNave);
 
         desenharInimigos(naveInimiga, texturaInimigo);
+        
+        desenharTiroInimigo(tirosInimigos, texturaTiroInimigo);
 
         desenharEstrelaDaMorte(estrela, texturaDeath_Star);
 
@@ -1023,6 +1149,7 @@ int main(void) {
     UnloadTexture(texturaTiro);
     UnloadTexture(texturaInimigo);
     UnloadTexture(texturaDeath_Star);
+    UnloadTexture(texturaTiroInimigo);
 
     CloseWindow();
 
@@ -1043,6 +1170,15 @@ int main(void) {
 
     free(auxiliar);
 
+    }
+    
+    while (tirosInimigos != NULL) {
+
+        TiroInimigo *auxiliar = tirosInimigos;
+
+        tirosInimigos = tirosInimigos->prox;
+
+        free(auxiliar);
     }
 
     
