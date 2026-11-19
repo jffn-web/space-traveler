@@ -172,12 +172,13 @@ Inimigo *escolherStormTrooper(Inimigo *naveInimiga){
 
 TiroInimigo *adicionarTiroInimigo(TiroInimigo *laser, Inimigo *naveInimiga){
 
-    static float tempoDisparo = 0.80f;
+    static float tempoDisparo = 0.00f;// é static pq acumula, a cada frame ele chama a funcao
+    //se nao fosse ela ia voltar pra 0 sempre
 
     tempoDisparo += GetFrameTime();//espera o tempo de desparo pra atirar de novo, adicionar um tiro
 
 
-    if (tempoDisparo >= 1.00f) {
+    if (tempoDisparo >= 1.60f) {
 
         Inimigo *storm = escolherStormTrooper(naveInimiga);//pega a lista da nave pra ver qual ta vivo e retorna o aleatorio pra atirar
 
@@ -850,9 +851,11 @@ TiroJogador *colisaoTiroDOJogador(TiroJogador *bullet, Inimigo *naveInimiga){
 
                     bullet = auxiliarTiro->prox;//se esse for null quer dizer que é o primeiro tiro, e nao fez um while todo ainda
                     //bullet vai apontar pro segundo tiro que vai virar o "primeiro"
+                    //se nao tiver primeiro tiro ele vai ser null ja que nao vai ter tiro sobrando
                 } else {
 
                     anteriorTiro->prox = auxiliarTiro->prox; //se chegar no else foi o segundo tiro, fazendo o primeiro apontar pra null
+                    //ja passou por um while
                 }
 
                 free(auxiliarTiro); //libera qualquer que for o tiro
@@ -866,15 +869,74 @@ TiroJogador *colisaoTiroDOJogador(TiroJogador *bullet, Inimigo *naveInimiga){
             auxiliarInimigo = auxiliarInimigo->prox;//move a lista pra analisar todos os inimigos
         }
         
-        auxiliarInimigo = naveInimiga;//volta o auxiliar pro começo pra conseguir ver todos inimigois de novo em caso de outro tiro acertar
+        auxiliarInimigo = naveInimiga;//volta o auxiliar pro inicio pra conseguir ver todos inimigos de novo em caso de outro tiro acertar
 
         anteriorTiro = auxiliarTiro;//o anterior vai apontar pro primeiro tiro
-        
+        //-> o de baixo vai pro segundo tiro
         auxiliarTiro = auxiliarTiro->prox;//percorre a lista pra checar se alguma das balas acertou e vai pro segundo tiro
         
     }
     
     return bullet;//retorna a lista
+}
+
+TiroJogador *colisaoTiroNaDeathStar(TiroJogador *bullet, DeathStar *estrela){
+
+
+    TiroJogador *auxiliarTiro = bullet;
+    TiroJogador *anterior = NULL;
+        
+    if(estrela->vivo == 0){
+
+        return bullet;
+
+    }
+
+    while(auxiliarTiro != NULL){
+            
+        Rectangle hitboxTiro = {auxiliarTiro->x, auxiliarTiro->y ,auxiliarTiro->largura ,auxiliarTiro->altura};//declara o hitbox onde o tiro ta e qual a area
+        
+        Rectangle hitboxDeathStar = {estrela->x, estrela->y ,estrela->largura , estrela->altura};
+        
+            
+        if(CheckCollisionRecs(hitboxDeathStar, hitboxTiro)){//se bateu no jogador
+            if (auxiliarTiro == bullet) {//se auxiliar for = ao inicio
+                  
+
+                estrela->vivo = 0;
+                estrela->tempoSpawn = 0.0f;//isso faz o timer voltar pra ele spawnar dnv
+
+                            
+                bullet = auxiliarTiro->prox;//se tiver dado um tiro o inicio vai ser null pelo aux->prox ser null, e se for o primeiro tiro o 2 vira o primeiro
+                free(auxiliarTiro);//libera o que saiu da tela
+
+                return bullet; //ele retorna pq ja acertou a estrela, nao da pra matar duas vezes ao mesmo tempo
+
+            } else {//ele vai estar no segundo tiro da lista
+
+                
+                estrela->vivo = 0;
+                estrela->tempoSpawn = 0.0f;//isso faz o timer voltar pra ele spawnar dnv
+
+                anterior->prox = auxiliarTiro->prox;// anterior aponta pra null ja que so pode ter dois tiros
+
+                free(auxiliarTiro);//libera o ultimo
+
+                return bullet; //ele retorna pq ja acertou a estrela, nao da pra matar duas vezes ao mesmo tempo
+                
+            }
+
+        } else {
+
+            anterior = auxiliarTiro;//se o tiro atual continua na tela, o anterior vira auxi, 
+
+            auxiliarTiro = auxiliarTiro->prox;// e auxiliar para o proximo, se for null ele encerra o while tambem
+        }
+            
+    }
+        
+    return bullet;//retorna a lista
+
 }
 
 void desenharTiro(TiroJogador *bullet, Texture2D texturaTiro) {//Solon
@@ -903,9 +965,9 @@ void movimentacaoEstrelaDaMorte(DeathStar *estrela, int *deathContador) {
 
         estrela->tempoSpawn += GetFrameTime();
 
-        if (estrela->tempoSpawn >= 15.0f) {//espera 15 segundo pra spawnar
+        if (estrela->tempoSpawn >= 20.0f) {//espera 20 segundo pra spawnar
 
-            estrela->vivo = 1;//quando passa 15 segundos, a estrela muda o estado para vivo
+            estrela->vivo = 1;//quando passa 20 segundos, a estrela muda o estado para vivo
             estrela->tempoSpawn = 0.0f;// e o contador volta
 
             if(*deathContador % 2 == 0){
@@ -1124,6 +1186,8 @@ int main(void) {
         bullet = colisaoTiroDOJogador(bullet, naveInimiga);
 
         movimentacaoEstrelaDaMorte(estrela, &deathContador1);
+
+        bullet = colisaoTiroNaDeathStar(bullet, estrela);
         
         tirosInimigos = adicionarTiroInimigo(tirosInimigos, naveInimiga);
         tirosInimigos = movimentacaoTiroInimigo(tirosInimigos);
