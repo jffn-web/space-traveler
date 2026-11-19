@@ -1,5 +1,6 @@
 #include "raylib.h"
 #include <stdlib.h>
+#include <stdio.h>
 
 
 
@@ -16,8 +17,17 @@ typedef struct Jogador{
 
     int pontos;
     float tempoDano;
+
+    char nome[30];
     
 }Jogador;
+
+typedef struct Log {
+
+    char nome[30];
+    int pontos;
+
+} Log;
 
 typedef struct TiroJogador{
     
@@ -347,7 +357,7 @@ TiroInimigo *adicionarTiroInimigo(TiroInimigo *laser, Inimigo *naveInimiga){
     tempoDisparo += GetFrameTime();//espera o tempo de desparo pra atirar de novo, adicionar um tiro
 
 
-    if (tempoDisparo >= 1.10f) {
+    if (tempoDisparo >= 0.80f) {
 
         Inimigo *storm = escolherStormTrooper(naveInimiga);//pega a lista da nave pra ver qual ta vivo e retorna o aleatorio pra atirar
 
@@ -1237,6 +1247,8 @@ void inicializarJogador(struct Jogador *um){
 
     um->pontos = 0;
     um->tempoDano = 0.0f;
+
+    um->nome[0] = '\0';
 }
 
 void movimentacaoJogador(struct Jogador *um){
@@ -1272,6 +1284,44 @@ void movimentacaoJogador(struct Jogador *um){
     }
     
     // ELE FAZ ATUALIZAÇÕES EM RELACÃO AO FPS DO JOGO;
+}
+
+int digitarNome(Jogador *um) {
+
+    int tamanho = TextLength(um->nome);
+
+    char *posicao = um->nome + tamanho;//aponta para o fim do nome
+
+    int letra = GetCharPressed();
+
+    while (letra != 0) {
+
+        if(tamanho < 29 && ((letra >= 'a' && letra <= 'z') || (letra >= 'A' && letra <= 'Z'))){//aceita letra mauiscula e minuscula
+
+            *posicao = letra;//escreve a letra nessa posicao
+
+            posicao++;//avança para a proxima posição
+            tamanho++;// tamanho nao pode passar de 28
+
+            *posicao = '\0';//marca o novo fim do nome
+        }
+
+        letra = GetCharPressed();//pega a letra q a pessoa digitar
+    }
+
+    if(IsKeyPressed(KEY_BACKSPACE) && tamanho > 0){//se tiver escrito algo 
+
+        posicao--;//volta para a ultima letra
+
+        *posicao = '\0';//encerra o texto antes da ultima letra
+    }
+
+    if(IsKeyPressed(KEY_ENTER) && *um->nome != '\0') {
+
+        return 1;//vai retornar que criou o nome
+    }
+
+    return 0;//nao criou
 }
 
 void desenharNave(Jogador *um, Texture2D texturaNaveNormal, Texture2D texturaMachucada, Texture2D texturaNaveLascada, Texture2D texturaExplosao) {
@@ -1425,6 +1475,107 @@ void desenharMenu(int opcaoMenu, Texture2D texturaFundoMenu) {//esenha o fundo d
 }
 
 
+void inserirNosMelhores(Log *logs, Log atual) {
+
+    Log *posicao = logs;//apotna pra o primeiro log
+
+    while(posicao < logs + 5) {//percorre os 5 logs
+
+        if(atual.pontos > posicao->pontos) {//se tiver mais pontos
+
+            Log troca = *posicao;//guarda o jogador com menso pontos
+
+            *posicao = atual;// substitui pelo com mais
+
+            atual = troca;//guarda o com menos pontos pra ver se ele continua na lista
+        }
+
+        posicao++;//vai para o próximo Log
+    }
+}
+
+void salvarPontuacao(Jogador *um) {
+
+    Log logs[5] = {0};//cria cinco registros zerados
+
+    Log *posicao = logs;//aponta para o primeiro
+
+    while(posicao < logs + 5) {
+
+        posicao->pontos = -1;//marca a vaga como vazia
+
+        posicao++;
+    }
+
+    FILE *arquivo = fopen("ranking.txt", "r");//abre pra ler os resultados antigos
+
+    if(arquivo != NULL) {//so le se conseguiu abrir
+
+        Log atual;//guarda um resultado por vez
+
+        
+        while (fscanf(arquivo, "%29s %d", atual.nome, &atual.pontos) == 2){//continua enquanto conseguir ler o nome e os pontos, os dois
+
+            inserirNosMelhores(logs, atual);//encaixa o resultado no ranking
+        }
+
+        fclose(arquivo);//terminou de ler
+    }
+
+    Log novo;
+
+    snprintf(novo.nome, sizeof(novo.nome), "%s", um->nome);//guarda o novo nome
+
+    novo.pontos = um->pontos;//guarda novos pontos
+
+    inserirNosMelhores(logs, novo);//tenta colocar a pontuacao nos melhores
+
+    arquivo = fopen("ranking.txt", "w");//cria o arquivo ou apaga o conteudo antigo
+
+    if (arquivo == NULL) {
+
+        return;//nao conseguiu abrir pra salvar
+    }
+
+    posicao = logs;//volta ao primeiro registro
+
+    while(posicao < logs + 5) {
+
+        if(posicao->pontos >= 0) {//so salva as vagas preenchidas
+
+            fprintf(arquivo, "%s %d\n", posicao->nome, posicao->pontos);//escreve nome e pontos, um jogador por linha
+        }
+
+        posicao++;
+    }
+
+    fclose(arquivo);//fecha o arquivo
+}
+
+int carregarRanking(Log *logs) {
+
+    FILE *arquivo = fopen("ranking.txt", "r");
+
+    if(arquivo == NULL) {
+
+        return 0;//nao tem nada
+    }
+
+    int quantidade = 0;
+    Log *posicao = logs;
+
+    while(quantidade < 5 && fscanf(arquivo, "%29s %d", posicao->nome, &posicao->pontos) == 2) {
+
+        quantidade++;
+        posicao++;//avança para o próximo Log
+    }
+
+    fclose(arquivo);
+
+    return quantidade;
+}
+
+
 int main(void) {
 
     InitWindow(800, 600, "Space Traveler");
@@ -1544,15 +1695,80 @@ int main(void) {
     int opcao = 0;//qual tela ta aberta
     int opcaoMenu = 0;//tela q o w / s ta em cima
 
+    int pontuacaoSalva = 0;//impede salvar a mesma partida em todo frame
+
+    Log logs[5];
+    int quantidadeLogs = 0;
+
     while(!WindowShouldClose()) {//enquando opcao for != 3
 
         if(opcao == 0) {
 
             opcao = controlarMenu(&opcaoMenu);//fica no menu
 
+            if(opcao == 2) {
+
+                quantidadeLogs = carregarRanking(logs);//entrou no ranking
+
+            }
+
             if(opcao == 3) {
 
                 break;//fecha o jogo
+            } if(opcao == 1) {
+
+                
+                while(naveInimiga != NULL) {//libera os inimigos da ultima partida
+
+                    Inimigo *auxiliar = naveInimiga;
+
+                    naveInimiga = naveInimiga->prox;
+
+                    free(auxiliar);
+                }
+
+                
+                while(bullet != NULL) {//libera os tiros da ultima partida
+
+                    TiroJogador *auxiliar = bullet;
+
+                    bullet = bullet->prox;
+
+                    free(auxiliar);
+                }
+
+                
+                while(tirosInimigos != NULL) {//libera os tiros da ultima partida
+
+                    TiroInimigo *auxiliar = tirosInimigos;
+
+                    tirosInimigos = tirosInimigos->prox;
+
+                    free(auxiliar);
+                }
+
+                
+                naveInimiga = inicializarInimigo(naveInimiga);// Cria os inimigos para a nova partida
+
+                if(naveInimiga == NULL) {
+
+                    break;
+                }
+
+                
+                inicializarJogador(primeiro);//volta para 3 vidas, 0 pontos e sem nome
+
+                
+                inicializarEscudos(escudos);
+                inicializarEstrelaDaMorte(estrela);//resutaura escudos e a death
+
+                
+                tempoNovaOnda = 0.0f;
+                tempoMorte = 0.0f;//zera os cotnadores
+                deathContador1 = 0;
+                pontuacaoSalva = 0;
+
+                opcao = 4;//pede o nome da nova partida
             }
 
         }else if (opcao == 1) {//starta o jogo
@@ -1563,12 +1779,22 @@ int main(void) {
 
                     tempoMorte += GetFrameTime();// pra quando ele morrer pausar o tempo ja que o o proximo else nao vai funcionar
                     //entao nenhuma funcao de colisao etc funciona
-                }
-                else if(IsKeyPressed(KEY_ENTER)) {
 
-                    opcao = 0;//volta para o menu
+                }else{
 
-                    opcaoMenu = 0;//deixa JOGAR selecionado
+                if(pontuacaoSalva == 0) {
+
+                        salvarPontuacao(primeiro);//quando morrer salva a pontuacao
+
+                        pontuacaoSalva = 1;
+                    }
+
+                    if(IsKeyPressed(KEY_ENTER)) {
+
+                        opcao = 0;//volta para o menu
+
+                        opcaoMenu = 0;//deixa JOGAR selecionado
+                    }
                 }
 
             }else if(ImperioEliminado(naveInimiga) == 1){//se todas as naves estiverem mortas
@@ -1647,11 +1873,16 @@ int main(void) {
 
         } else if(opcao == 2) {//ranking
 
+
             if (IsKeyPressed(KEY_BACKSPACE)) {
 
-                //em progresso
-
                 opcao = 0;
+            }
+        }else if (opcao == 4){//recebe o nome digitado
+
+            if(digitarNome(primeiro) == 1) {
+
+                opcao = 1;//ele volta pro jogo, pq ele sai do if de 0 e vai pro de 1
             }
         }
 
@@ -1695,6 +1926,33 @@ int main(void) {
             DrawText("RANKING", (800 - MeasureText("RANKING", 40)) / 2, 130, 40, YELLOW);
 
             DrawText("BACKSPACE: VOLTAR", 20, 560, 20, WHITE);
+
+            if(quantidadeLogs == 0) {
+
+                DrawText("NENHUMA PONTUACAO", 190, 280, 20, WHITE);
+
+            } else {
+
+                for(int i = 0; i < quantidadeLogs; i++) {
+
+                    DrawText(TextFormat("%d. %s - %d", i + 1, (logs + i)->nome, (logs + i)->pontos), 220, 220 + i * 50, 25, WHITE);
+                    //escreve o nome de cada pessoa no ranking
+                }
+            }
+
+        }else if(opcao == 4){//desenha a tela escolher o nome
+
+            DrawText("DIGITE SEU NOME", (800 - MeasureText("DIGITE SEU NOME", 30)) / 2, 180, 30, YELLOW);
+
+            DrawRectangle(60, 260, 680, 60, Fade(BLACK, 0.8f));
+
+            DrawRectangleLines(60, 260, 680, 60, YELLOW);
+
+            DrawText(primeiro->nome, 75, 280, 20, WHITE);
+
+            DrawText("ENTER: CONFIRMAR", 260, 370, 20, WHITE);
+
+            DrawText("BACKSPACE: APAGAR", 260, 410, 20, WHITE);
         }
 
         EndDrawing();

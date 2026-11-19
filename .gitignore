@@ -3,8 +3,9 @@
 *.o
 *.out
 
-# Pasta de compilacao
-build/
+# Pastas de compilacao
+/build/
+/build-cmake/
 
 # Arquivos temporarios
 *.log
@@ -12,3 +13,5 @@ build/
 
 # Configuracoes locais
 .vscode/
+
+/ranking.txt
