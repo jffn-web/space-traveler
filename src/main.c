@@ -1,6 +1,8 @@
 #include "raylib.h"
 #include <stdlib.h>
 
+
+
 typedef struct Jogador{
     
     float largura;
@@ -11,6 +13,9 @@ typedef struct Jogador{
     
     float x;
     float y;
+
+    int pontos;
+    float tempoDano;
     
 }Jogador;
 
@@ -79,27 +84,191 @@ typedef struct TiroInimigo{
     
 }TiroInimigo;
 
+typedef struct Escudo {
 
-void inicializarEstrelaDaMorte(DeathStar *estrela) {
-    
-    if (estrela == NULL) {
-        return;
+    int quadrado[5][8];
+    float x;
+    float y;
+
+} Escudo;
+
+void inicializarEscudos(Escudo escudos[4]) {
+
+    int formacao[5][8] = {
+        {0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 1, 1, 1, 1, 0, 0},
+        {0, 1, 1, 1, 1, 1, 1, 0},
+        {0, 1, 1, 1, 1, 1, 1, 0},
+        {0, 1, 1, 0, 0, 1, 1, 0}
+    };//define aonde vai desenhar e onde nao
+
+    int h = 0;//comeca o contador pra mover o while
+
+    float constanteX = 64;
+
+    while (h < 4) {
+
+        escudos[h].x = constanteX;//onde o escudo comeca
+        escudos[h].y = 400;
+
+        for (int i = 0; i < 5; i++) {//linha
+
+            for (int j = 0; j < 8; j++) {//coluna
+
+                escudos[h].quadrado[i][j] = formacao[i][j];//iguala de cada item da lista que vai servir para desenhar e colisao
+                //vai ser a posicao de cada quadrado
+            }
+
+        }
+
+        h++;//troca de vetor de escudo
+
+        constanteX += 176;//move o x pra os escudos nao ficarem um em cima do outro
     }
-        
-    estrela->largura = 160;
-    estrela->altura = 80;
-        
-    estrela->velocidade = 150;
-        
-    estrela->y = 35;
-    estrela->x = -60;
-        
-    estrela->pontos = 100;
-    estrela->vivo = 0;
+}
 
-    estrela->tempoSpawn = 0.0f;
+void desenharEscudos(Escudo escudos[4], Texture2D texturaEscudo){
+
+    int h = 0;//comeca o contador
+    
+    while(h < 4){
+
+        for(int i = 0; i < 5; i++){
+
+            for(int j = 0;j < 8; j++){
+
+                if (escudos[h].quadrado[i][j] == 1) {
+
+                    Rectangle origem = {0, 0, texturaEscudo.width, texturaEscudo.height};//pega tudo da imagem,
+
+                    Rectangle destino = {escudos[h].x + j * 16, escudos[h].y + i * 16, 16, 16};//16 pq é a largura e altura do quadrado
+                    //pega o x de cada escudo, e fica adicionando ao lado e abaixo, multiplica com j, e y pra nao ficar colado
+
+                    DrawTexturePro(texturaEscudo, origem, destino, (Vector2){0, 0}, 0, WHITE);
+                }
+            }
+
+        }
+
+        h++;//troca de vetor de escudo
+    }
 
 }
+
+TiroInimigo *colisaoTiroDoInimigoNosEscudos(TiroInimigo *laser, Escudo escudos[4]) {
+
+    TiroInimigo *auxiliarTiroInimigo = laser;
+    TiroInimigo *anterior = NULL;
+
+    int h = 0;
+
+    while (auxiliarTiroInimigo != NULL) {//percorre os tiros
+
+        Rectangle hitboxTiroInimigo = {auxiliarTiroInimigo->x, auxiliarTiroInimigo->y, auxiliarTiroInimigo->largura, auxiliarTiroInimigo->altura};
+        //hitbox do tiro
+        while(h < 4){//percorre o escudo
+
+            for (int i = 0; i < 5; i++){//ja que os tiros vem de cima pra baixo prioriza os de cima
+
+                for(int j = 0; j < 8; j++) {//colunas
+
+                    if (escudos[h].quadrado[i][j] == 1){//se o quadrado tiver vivo
+
+                        Rectangle hitboxQuadrado = {escudos[h].x + j * 16, escudos[h].y + i * 16, 16, 16};//hitbox quadrado
+
+                        if (CheckCollisionRecs(hitboxQuadrado, hitboxTiroInimigo)) {//se acertou
+
+                            escudos[h].quadrado[i][j] = 0;//o quadrado morre
+
+                            if(auxiliarTiroInimigo == laser) {//libera o tiro inimigo
+
+                                laser = auxiliarTiroInimigo->prox;
+
+                                free(auxiliarTiroInimigo);
+                            } else{
+
+                                anterior->prox = auxiliarTiroInimigo->prox;
+
+                                free(auxiliarTiroInimigo);
+                            }
+
+                            return laser;
+                        }
+                    }
+                }
+            }
+
+            h++;//perocrre escudo
+        }
+
+        h = 0;
+
+        anterior = auxiliarTiroInimigo;//percorre tiro inimigo
+        auxiliarTiroInimigo = auxiliarTiroInimigo->prox;
+    }
+
+    return laser;
+}
+
+TiroJogador *colisaoTiroDoJogadorNosEscudos(TiroJogador *bullet, Escudo escudos[4]) {
+
+    TiroJogador *auxiliarTiro = bullet;
+    TiroJogador *anterior = NULL;
+
+    int h = 0;
+
+    while (auxiliarTiro != NULL) {// percorre os tiros do jogador
+
+        Rectangle hitboxTiro = {auxiliarTiro->x, auxiliarTiro->y, auxiliarTiro->largura, auxiliarTiro->altura};
+
+        while(h < 4) {//percorre os 4 escudos
+
+            for(int i = 4; i >= 0; i--){//prioriza os quadrados inferiores, as linhas
+
+                for(int j = 0; j < 8; j++) {//percorre as colunas da esquerda pra direita
+
+                    if (escudos[h].quadrado[i][j] == 1){//se o bloco ainda existir != 0
+
+                        Rectangle hitboxQuadrado = {escudos[h].x + j * 16, escudos[h].y + i * 16, 16, 16};//pega o hitbox do bloco
+
+                        if (CheckCollisionRecs(hitboxTiro, hitboxQuadrado)){//checa colisao
+
+                            escudos[h].quadrado[i][j] = 0;//se colidiu, ele morre
+
+                            if(auxiliarTiro == bullet) {//da free na bala que atinjiu
+
+                                bullet = auxiliarTiro->prox;
+
+                                free(auxiliarTiro);
+
+                            } else {
+
+                                anterior->prox = auxiliarTiro->prox;
+
+                                free(auxiliarTiro);
+
+                            }
+
+                            return bullet;
+
+                        }
+                    }
+                }
+            }
+
+            h++;//percorre o while dos escudos
+        }
+
+        h = 0;//percorre o while dos escudos
+
+        anterior = auxiliarTiro;//percorre as balas
+        auxiliarTiro = auxiliarTiro->prox;//percorre as balas
+    }
+
+    return bullet;
+}
+
+
 TiroInimigo *criarTiroInimigo(Inimigo *naveInimiga){
 
     TiroInimigo *novo = malloc(sizeof(TiroInimigo));
@@ -178,7 +347,7 @@ TiroInimigo *adicionarTiroInimigo(TiroInimigo *laser, Inimigo *naveInimiga){
     tempoDisparo += GetFrameTime();//espera o tempo de desparo pra atirar de novo, adicionar um tiro
 
 
-    if (tempoDisparo >= 1.60f) {
+    if (tempoDisparo >= 1.10f) {
 
         Inimigo *storm = escolherStormTrooper(naveInimiga);//pega a lista da nave pra ver qual ta vivo e retorna o aleatorio pra atirar
 
@@ -311,7 +480,7 @@ void desenharTiroInimigo(TiroInimigo *laser, Texture2D texturaTiroInimigo) {
 
     TiroInimigo *auxiliar = laser;
 
-    while (auxiliar != NULL) {
+    while (auxiliar != NULL) {//faz um while pra percorrer todos os tiros e desenhar
 
         Rectangle origem = {0, 0, texturaTiroInimigo.width, texturaTiroInimigo.height};
 
@@ -538,7 +707,7 @@ Inimigo* inicializarInimigo(Inimigo *naveInimiga) {
 
         }
 
-        if(i > 43 && i < 55){
+        if (i > 43 && i < 55){
 
 
             if (i == 44){
@@ -604,7 +773,7 @@ Inimigo *movimentacaoInimigos(Inimigo *stromtrooper, Jogador *um) {
         
     if (um->vidas != 0) {
         
-        if (tempoMovimento >= 0.80f) {// a cada 0.80
+        if (tempoMovimento >= 0.80f){// a cada 0.80
             
             if (direcao == 1) {
                 
@@ -824,7 +993,7 @@ TiroJogador *movimentacaoTiro(TiroJogador *bullet) {
     return bullet;//retorna ou null ou o inicio da lista
 }
 
-TiroJogador *colisaoTiroDOJogador(TiroJogador *bullet, Inimigo *naveInimiga){
+TiroJogador *colisaoTiroDOJogador(TiroJogador *bullet, Inimigo *naveInimiga, Jogador *um){
     
     
     TiroJogador *auxiliarTiro = bullet;//pra mover em bullet
@@ -846,6 +1015,8 @@ TiroJogador *colisaoTiroDOJogador(TiroJogador *bullet, Inimigo *naveInimiga){
             if (auxiliarInimigo->vivo == 1 && CheckCollisionRecs(hitboxTiro, hitboxInimigo)) {//verifica se o acertou um inimigo visivel(vivo)
                 
                 auxiliarInimigo->vivo = 0;//impede que ele seja desenhado, bata na parede, ou de gameover
+
+                um->pontos += auxiliarInimigo->pontos;//soma os pontos desse inimigo ao jogador
 
                 if (anteriorTiro == NULL) {
 
@@ -880,7 +1051,7 @@ TiroJogador *colisaoTiroDOJogador(TiroJogador *bullet, Inimigo *naveInimiga){
     return bullet;//retorna a lista
 }
 
-TiroJogador *colisaoTiroNaDeathStar(TiroJogador *bullet, DeathStar *estrela){
+TiroJogador *colisaoTiroNaDeathStar(TiroJogador *bullet, DeathStar *estrela, Jogador *um){
 
 
     TiroJogador *auxiliarTiro = bullet;
@@ -900,6 +1071,9 @@ TiroJogador *colisaoTiroNaDeathStar(TiroJogador *bullet, DeathStar *estrela){
         
             
         if(CheckCollisionRecs(hitboxDeathStar, hitboxTiro)){//se bateu no jogador
+
+            um->pontos += estrela->pontos;
+
             if (auxiliarTiro == bullet) {//se auxiliar for = ao inicio
                   
 
@@ -954,6 +1128,28 @@ void desenharTiro(TiroJogador *bullet, Texture2D texturaTiro) {//Solon
         auxiliar = auxiliar->prox;
     }
 }
+
+void inicializarEstrelaDaMorte(DeathStar *estrela) {
+    
+    if (estrela == NULL) {
+        return;
+    }
+        
+    estrela->largura = 80;
+    estrela->altura = 40;
+        
+    estrela->velocidade = 150;
+        
+    estrela->y = 40;
+    estrela->x = -60;
+        
+    estrela->pontos = 100;
+    estrela->vivo = 0;
+
+    estrela->tempoSpawn = 0.0f;
+
+}
+
 
 void movimentacaoEstrelaDaMorte(DeathStar *estrela, int *deathContador) {
 
@@ -1038,6 +1234,9 @@ void inicializarJogador(struct Jogador *um){
     
     um->x = 368;
     um->y = 520;
+
+    um->pontos = 0;
+    um->tempoDano = 0.0f;
 }
 
 void movimentacaoJogador(struct Jogador *um){
@@ -1075,12 +1274,154 @@ void movimentacaoJogador(struct Jogador *um){
     // ELE FAZ ATUALIZAÇÕES EM RELACÃO AO FPS DO JOGO;
 }
 
+void desenharNave(Jogador *um, Texture2D texturaNaveNormal, Texture2D texturaMachucada, Texture2D texturaNaveLascada, Texture2D texturaExplosao) {
 
-void desenharNave(struct Jogador *um, Texture2D textura){//Solon 
+    Texture2D textura = texturaNaveNormal;
+
+    if (um->vidas == 2) {// se tiver com duas vidas ela fica machucada, e muda de imagem
+
+        textura = texturaMachucada;
+
+    } else if (um->vidas == 1) {
+
+        textura = texturaNaveLascada;// se tiver com um ela fica toda lascada e muda
+
+    } else if (um->vidas == 0) {
+
+        textura = texturaExplosao;// se tiver com 0 explode e encerra o jogo
+    }
+
+    Rectangle origem = {0, 0, textura.width, textura.height};//imagem em si
+
+    Rectangle destino = {um->x, um->y, um->largura, um->altura};//area que a imagem vai ocupar
+
+    DrawTexturePro(textura, origem, destino, (Vector2){0, 0}, 0, WHITE);
+}
+
+///////////////////////////////////////////////
+//Loop do jogo
+
+int ImperioEliminado(Inimigo *naveInimiga) {
+
+    Inimigo *auxiliar = naveInimiga;
+
+    while (auxiliar != NULL){//percorre tudo pra ver se tem alguem vivo
+
+        if (auxiliar->vivo == 1) {//se tiver no minimo 1 vivo ja retorna 0
+            //signfica que nao precisa reiniciar os inimigos
+            return 0;
+        }
+
+        auxiliar = auxiliar->prox;
+    }
+
+    return 1;
+}
+
+void desenharPontuacao(Jogador *um) {
+
+    const char *texto = TextFormat("PONTOS: %d", um->pontos);
+
+    int larguraTexto = MeasureText(texto, 20);
+
+    DrawText(texto, 800 - larguraTexto - 15, 8, 20, YELLOW);//se alinha na direita
+
+}
+
+void desenharGameOver(void) {
+
+    DrawText("GAME OVER", (800 - MeasureText("GAME OVER", 50)) / 2, 230, 50, RED);//desenha game over, no lugar e tamanho da fonte
+
+    DrawRectangle(230, 340, 340, 55, Fade(BLACK, 0.8f));//o fundo do botao
+
+    DrawRectangleLines(230, 340, 340, 55, YELLOW);//fica opcao pra ver o cenario
+
+    DrawText("VOLTAR AO MENU", (800 - MeasureText("VOLTAR AO MENU", 25)) / 2, 355, 25, YELLOW);//esenha voltar ao menu
+
+    DrawText("ENTER: CONFIRMAR", (800 - MeasureText("ENTER: CONFIRMAR", 18)) / 2, 420, 18, WHITE);//desenha as instrucoes
+}
 
 
-    DrawTexture(textura, um->x, um->y, WHITE);
 
+void desenharFundo(Texture2D texturaFundo) {//fundo in game
+
+    Rectangle origem = {0, 0, texturaFundo.width, texturaFundo.height};
+
+    Rectangle destino = {0, 0, 800, 600};
+
+    DrawTexturePro(texturaFundo, origem, destino, (Vector2){0, 0}, 0, WHITE);
+}
+
+int controlarMenu(int *opcaoMenu) {
+
+    if(IsKeyPressed(KEY_S)){// faz um loop de 0 a 2 pra as opcoes
+
+        (*opcaoMenu)++;
+
+        if (*opcaoMenu > 2){
+
+            *opcaoMenu = 0;
+        }
+    }
+
+    if (IsKeyPressed(KEY_W)){
+
+        (*opcaoMenu)--;
+
+        if(*opcaoMenu < 0) {// faz um loop de 0 a 2 pra as opcoes
+
+            *opcaoMenu = 2;
+        }
+    }
+
+    if(IsKeyPressed(KEY_ENTER)) {
+
+        if(*opcaoMenu == 0) {
+
+            return 1;//jogar
+
+        } else if (*opcaoMenu == 1){
+
+            return 2;//ranking
+
+        } else if (*opcaoMenu == 2) {
+
+            return 3;//sair
+        }
+    }
+
+    return 0;//continua no menu
+}
+
+void desenharMenu(int opcaoMenu, Texture2D texturaFundoMenu) {//esenha o fundo do menu
+
+    Rectangle origem = {0, 0, texturaFundoMenu.width, texturaFundoMenu.height};//a imagem em si
+
+    Rectangle destino = {0, 0, 800, 600};// onde ela vai ocupar
+
+    DrawTexturePro(texturaFundoMenu, origem, destino, (Vector2){0, 0}, 0, WHITE);//mantem as cores originais
+
+    DrawText("SPACE", 90, 100, 50, YELLOW);
+    DrawText("TRAVELER", 90, 155, 50, YELLOW);
+
+    const char *opcoes[3] = {"JOGAR", "RANKING", "SAIR"};
+
+    for (int i = 0; i < 3; i++){
+
+        Color cor = WHITE;//se a opcao nao tiver selcionada ele comeca com branco
+
+        if (i == opcaoMenu) {// se tiver encima no w / s 
+
+            cor = YELLOW;//troca a cor pra amarelo
+
+            DrawText(">", 65, 290 + i * 60, 30, cor);//setinha pra ficar bonito, se a escolha estiver em cima
+        }
+
+        DrawText(opcoes[i], 100, 290 + i * 60, 30, cor);//desenha a opcao em amarelo, ou branco dependendo de onde tiver o w / s
+    }
+
+    DrawText("W / S: SELECIONAR", 90, 510, 16, WHITE);
+    DrawText("ENTER: CONFIRMAR", 90, 535, 16, WHITE);
 }
 
 
@@ -1092,12 +1433,19 @@ int main(void) {
     Texture2D texturaTiro = LoadTexture("assets/tiro.png");
     Texture2D texturaInimigo = LoadTexture("assets/inimigo1.png");
     Texture2D texturaDeath_Star = LoadTexture("assets/Death_Star.png");
-    Texture2D texturaTiroInimigo = LoadTexture("assets/tiroInimigo.png");
+    Texture2D texturaTiroInimigo = LoadTexture("assets/tiroInimigo.png");// carrega as texturas
+    Texture2D texturaEscudo = LoadTexture("assets/escudo.png");
+    Texture2D texturaNave2 = LoadTexture("assets/nave2.png");
+    Texture2D texturaNave3 = LoadTexture("assets/nave3.png");
+    Texture2D texturaExplosao = LoadTexture("assets/explosao.png");
+    Texture2D texturaFundo = LoadTexture("assets/fundo.png");
+    Texture2D texturaFundoMenu = LoadTexture("assets/fundoMenu.png");
 
     SetTargetFPS(60);
     
-    Jogador *primeiro = malloc(sizeof(Jogador));
+    Jogador *primeiro = malloc(sizeof(Jogador));// aloca o jogador
 
+    
     
     
     if (primeiro == NULL) {//nao tem free primeiro pq ele ja é null entao nao tem oq liberar
@@ -1106,47 +1454,66 @@ int main(void) {
         UnloadTexture(texturaTiro);
         UnloadTexture(texturaInimigo);
         UnloadTexture(texturaDeath_Star);
-        UnloadTexture(texturaTiroInimigo);
+        UnloadTexture(texturaTiroInimigo);//libera as texturas
+        UnloadTexture(texturaEscudo);
+        UnloadTexture(texturaNave2);
+        UnloadTexture(texturaNave3);
+        UnloadTexture(texturaExplosao);
+        UnloadTexture(texturaFundo);
+        UnloadTexture(texturaFundoMenu);
 
         CloseWindow();
 
         return 1;
     }
     
-    inicializarJogador(primeiro);
+    inicializarJogador(primeiro);//incializa as especificacoes do jogador
 
     TiroJogador *bullet = NULL;
 
-    Inimigo *naveInimiga = NULL;
+    Inimigo *naveInimiga = NULL;//cria os ponteiros dos tiros e inimigos
 
     TiroInimigo *tirosInimigos = NULL;
 
-    int deathContador1 = 0;
+    int deathContador1 = 0;//mecanica de sair pela esquerda ou pela direita
 
-    naveInimiga = inicializarInimigo(naveInimiga);
+    naveInimiga = inicializarInimigo(naveInimiga);//incializa os 55 inimgios
 
     if (naveInimiga == NULL) {//aqui tem free primeiro pq ele ja funcionou mas nao tem free nave pq a função ja libera
 
-        free(primeiro);
+        free(primeiro);//libera primeiro pq ja ta alocado
 
         UnloadTexture(texturaNave);
         UnloadTexture(texturaTiro);
         UnloadTexture(texturaInimigo);
         UnloadTexture(texturaDeath_Star);
         UnloadTexture(texturaTiroInimigo);
+        UnloadTexture(texturaEscudo);//libera as texturas
+        UnloadTexture(texturaNave2);
+        UnloadTexture(texturaNave3);
+        UnloadTexture(texturaExplosao);
+        UnloadTexture(texturaFundo);
+        UnloadTexture(texturaFundoMenu);
 
         CloseWindow();
 
         return 1;
     }
 
-    DeathStar *estrela = malloc(sizeof(DeathStar));
+    DeathStar *estrela = malloc(sizeof(DeathStar));//aloca a death star
+
+
+    Escudo escudos[4];//vetor dos escudos
+    inicializarEscudos(escudos);//inicia a matriz dos escudos
+
+    float tempoNovaOnda = 0.0f;//espera um tempo pra spawnar os novos inimigos
+    float tempoMorte = 0.0f;//quando explode ela espera um tempo antes de dar game over
 
     if (estrela == NULL) {//aqui tem q ter os dois free menos o da estrela que ja é null
 
-        free(primeiro);
+        free(primeiro);//liberar o jogador
 
-        while (naveInimiga != NULL) {
+        while (naveInimiga != NULL) {//tem que liberar os inimigos
 
             Inimigo *auxiliar = naveInimiga;
 
@@ -1160,51 +1527,175 @@ int main(void) {
         UnloadTexture(texturaInimigo);
         UnloadTexture(texturaDeath_Star);
         UnloadTexture(texturaTiroInimigo);
+        UnloadTexture(texturaEscudo);//liberar a textura
+        UnloadTexture(texturaNave2);
+        UnloadTexture(texturaNave3);
+        UnloadTexture(texturaExplosao);
+        UnloadTexture(texturaFundo);
+        UnloadTexture(texturaFundoMenu);
 
         CloseWindow();
 
         return 1;
     }
 
-    inicializarEstrelaDaMorte(estrela);
-    
-    
-    
+    inicializarEstrelaDaMorte(estrela);//especificacoes da estrela da morte
 
-    while (!WindowShouldClose() && primeiro->vidas > 0) {
+    int opcao = 0;//qual tela ta aberta
+    int opcaoMenu = 0;//tela q o w / s ta em cima
 
-        movimentacaoJogador(primeiro);
+    while(!WindowShouldClose()) {//enquando opcao for != 3
 
-        bullet = adicionarTiro(bullet, primeiro, &deathContador1);
+        if(opcao == 0) {
 
-        bullet = movimentacaoTiro(bullet);
+            opcao = controlarMenu(&opcaoMenu);//fica no menu
 
-        naveInimiga = movimentacaoInimigos(naveInimiga, primeiro);
-        
-        tirosInimigos = colisaoTiroDOInimigo(tirosInimigos, primeiro);
+            if(opcao == 3) {
 
-        bullet = colisaoTiroDOJogador(bullet, naveInimiga);
+                break;//fecha o jogo
+            }
 
-        movimentacaoEstrelaDaMorte(estrela, &deathContador1);
+        }else if (opcao == 1) {//starta o jogo
 
-        bullet = colisaoTiroNaDeathStar(bullet, estrela);
-        
-        tirosInimigos = adicionarTiroInimigo(tirosInimigos, naveInimiga);
-        tirosInimigos = movimentacaoTiroInimigo(tirosInimigos);
+            if(primeiro->vidas == 0){//verifica se o jogador morreu
 
-        BeginDrawing();
+                if(tempoMorte < 2.0f){// se ele morreu
+
+                    tempoMorte += GetFrameTime();// pra quando ele morrer pausar o tempo ja que o o proximo else nao vai funcionar
+                    //entao nenhuma funcao de colisao etc funciona
+                }
+                else if(IsKeyPressed(KEY_ENTER)) {
+
+                    opcao = 0;//volta para o menu
+
+                    opcaoMenu = 0;//deixa JOGAR selecionado
+                }
+
+            }else if(ImperioEliminado(naveInimiga) == 1){//se todas as naves estiverem mortas
+
+                tempoNovaOnda += GetFrameTime();//so quando todos morrem o timer comeca
+
+                if(tempoNovaOnda >= 2.0f){
+
+                    while(naveInimiga != NULL){//libera os inimigos da onda anterior
+
+                        Inimigo *auxiliar = naveInimiga;
+
+                        naveInimiga = naveInimiga->prox;
+
+                        free(auxiliar);
+                    }
+
+                    while(bullet != NULL){//libera os tiros do jogador
+
+                        TiroJogador *auxiliar = bullet;
+
+                        bullet = bullet->prox;
+
+                        free(auxiliar);
+                    }
+
+                    while(tirosInimigos != NULL){//libera os tiros dos inimigos
+
+                        TiroInimigo *auxiliar = tirosInimigos;
+
+                        tirosInimigos = tirosInimigos->prox;
+
+                        free(auxiliar);
+                    }
+
+                    naveInimiga = inicializarInimigo(naveInimiga);//os inimigos voltam
+
+                    if(naveInimiga == NULL){
+
+                        break;
+                    }
+
+                    inicializarEscudos(escudos);//os escudos voltam
+
+                    tempoNovaOnda = 0.0f;
+                }
+
+            } else {
+
+                movimentacaoJogador(primeiro);
+                //mover o jogador antes de atirar pra saber a posicao
+                bullet = adicionarTiro(bullet, primeiro, &deathContador1);
+
+                bullet = movimentacaoTiro(bullet);
+                //move o tiro antes de ver se colidiu
+                bullet = colisaoTiroDoJogadorNosEscudos(bullet, escudos);
+                //verifica o escudo antes dos inimigos pra o jogador nao atriar no mesmo tiro escudo e inimigos
+                naveInimiga = movimentacaoInimigos(naveInimiga, primeiro);
+                //move os inimigos antes de ver se colidiram que nem jogador
+                bullet = colisaoTiroDOJogador(bullet, naveInimiga, primeiro);
+
+                movimentacaoEstrelaDaMorte(estrela, &deathContador1);
+                //move death star antes de ver se colidiu que nem inimigo
+                bullet = colisaoTiroNaDeathStar(bullet, estrela, primeiro);
+
+
+                tirosInimigos = adicionarTiroInimigo(tirosInimigos, naveInimiga);
+                //escolhe quem vai atirar antes da movimentacao
+                tirosInimigos = movimentacaoTiroInimigo(tirosInimigos);
+
+                tirosInimigos = colisaoTiroDoInimigoNosEscudos(tirosInimigos, escudos);//ve se o tiro do inimigo bateu
+
+                tirosInimigos = colisaoTiroDOInimigo(tirosInimigos, primeiro);//verifica se bateu no inimigo, depois do escudo pra nao abter
+                //neele e no escudo
+            }
+
+        } else if(opcao == 2) {//ranking
+
+            if (IsKeyPressed(KEY_BACKSPACE)) {
+
+                //em progresso
+
+                opcao = 0;
+            }
+        }
+
+        ////////////////////////////////////////////////
+
+        BeginDrawing();//desenha
 
         ClearBackground(BLACK);
 
-        desenharNave(primeiro, texturaNave);
+        desenharFundo(texturaFundo);
 
-        desenharInimigos(naveInimiga, texturaInimigo);
-        
-        desenharTiroInimigo(tirosInimigos, texturaTiroInimigo);
+        if (opcao == 0){
 
-        desenharEstrelaDaMorte(estrela, texturaDeath_Star);
+            desenharMenu(opcaoMenu, texturaFundoMenu);//desenha o menu
 
-        desenharTiro(bullet, texturaTiro);
+        }else if (opcao == 1) {
+
+            if (primeiro->vidas == 0 && tempoMorte >= 2.0f) {
+
+                desenharGameOver();
+
+            } else {
+
+                desenharNave(primeiro, texturaNave, texturaNave2, texturaNave3, texturaExplosao);
+
+                desenharInimigos(naveInimiga, texturaInimigo);
+
+                desenharEscudos(escudos, texturaEscudo);
+
+                desenharTiroInimigo(tirosInimigos, texturaTiroInimigo);
+
+                desenharEstrelaDaMorte(estrela, texturaDeath_Star);
+
+                desenharTiro(bullet, texturaTiro);
+
+                desenharPontuacao(primeiro);
+            }
+
+        }else if (opcao == 2) {
+
+            DrawText("RANKING", (800 - MeasureText("RANKING", 40)) / 2, 130, 40, YELLOW);
+
+            DrawText("BACKSPACE: VOLTAR", 20, 560, 20, WHITE);
+        }
 
         EndDrawing();
     }
@@ -1214,10 +1705,16 @@ int main(void) {
     UnloadTexture(texturaInimigo);
     UnloadTexture(texturaDeath_Star);
     UnloadTexture(texturaTiroInimigo);
+    UnloadTexture(texturaEscudo);
+    UnloadTexture(texturaNave2);
+    UnloadTexture(texturaNave3);
+    UnloadTexture(texturaExplosao);
+    UnloadTexture(texturaFundo);
+    UnloadTexture(texturaFundoMenu);
 
     CloseWindow();
 
-    while (bullet != NULL) {
+    while(bullet != NULL) {
 
         TiroJogador *auxiliar = bullet;
 
@@ -1236,7 +1733,7 @@ int main(void) {
 
     }
     
-    while (tirosInimigos != NULL) {
+    while (tirosInimigos != NULL){
 
         TiroInimigo *auxiliar = tirosInimigos;
 
